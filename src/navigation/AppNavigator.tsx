@@ -1,6 +1,6 @@
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
-import HomeScreen from '../screens/HomeScreen';
+import HomeScreen from '../screens/Home/HomeScreen';
 
 // Define the navigation stack parameter list
 export type RootStackParamList = {
