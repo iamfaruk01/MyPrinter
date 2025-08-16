@@ -1,44 +1,57 @@
-import { TouchableOpacity, View } from "react-native";
-import { Text } from 'react-native'
-import { styles } from "./LoginScreen.styles"
-import React from "react";
-import { TextInput } from "react-native-gesture-handler";
+import React, { useRef } from "react";
+import { View, Text, TouchableOpacity, TextInput } from "react-native";
+import { styles } from "./LoginScreen.styles";
 import { styles as stylesHome } from "../Home/Home.styles";
+import { StackScreenProps } from "@react-navigation/stack";
+import { RootStackParamList } from "../../navigation/AppNavigator";
 import useLoginHandler from "./hooks/useLoginHandler";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 
-const OtpScreen: React.FC = () => {
+type OtpScreenProps = StackScreenProps<RootStackParamList, "OtpScreen">;
+
+const OtpScreen: React.FC<OtpScreenProps> = ({ route }) => {
+    const { phone } = route.params;
     const {
         Otp, setOtp,
         errorMessage, setErrorMessage,
-        handleOtp
+        verifyOtp,
+        handleOtpChange
     } = useLoginHandler()
+
+    const inputsRef = useRef<(TextInput | null)[]>([]);
+
     return (
-        <View style={styles.container}>
-            <TextInput
-                style={styles.input}
-                placeholder='Enter the OTP'
-                keyboardType='number-pad'
-                value={Otp}
-                onChangeText={(text) => {
-                    setOtp(text)
-                    if (errorMessage) setErrorMessage(null)
-                }}
-                maxLength={4}
-                placeholderTextColor={'black'}
-                autoFocus={true}
-                returnKeyType='go'
-                onSubmitEditing={handleOtp}
-            />
+        <KeyboardAwareScrollView>
+                    <View style={styles.container}>
+            <View style={styles.inputBoxContainer}>
+                {[0, 1, 2, 3].map((i) => (
+                    <TextInput
+                        key={i}
+                        ref={(ref) => {inputsRef.current[i] = ref}}
+                        style={styles.inputBox}
+                        keyboardType='number-pad'
+                        value={Otp[i] ?? ""}
+                        onChangeText={(text) => { handleOtpChange(text, i, inputsRef.current) }}
+                        maxLength={1}
+                        placeholderTextColor={'black'}
+                        autoFocus={i === 0}
+                        returnKeyType='go'
+                        onSubmitEditing={verifyOtp}
+                    />
+                ))}
+            </View>
+
             <TouchableOpacity
                 style={[stylesHome.actionButton, stylesHome.primaryButton]}
-                onPress={handleOtp}
+                onPress={verifyOtp}
             >
                 <Text style={stylesHome.actionButtonText}>Submit OTP</Text>
             </TouchableOpacity>
-            {errorMessage && 
+            {errorMessage &&
                 <Text style={styles.errorMessageText}>{errorMessage}</Text>
             }
         </View>
+        </KeyboardAwareScrollView>
     )
 }
 

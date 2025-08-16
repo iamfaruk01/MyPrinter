@@ -7,11 +7,8 @@ import OtpScreen from '../screens/Login/OtpScreen';
 // Define the navigation stack parameter list
 export type RootStackParamList = {
   Login: undefined;
-  OtpScreen: undefined;
+  OtpScreen: {phone: string};
   Home: undefined;
-  Print: undefined;
-  Settings: undefined;
-  PrinterList: undefined;
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -58,20 +55,6 @@ const AppNavigator: React.FC = () => {
         options={{ title: 'OTP' }}
       />
 
-      {/* Add other screens here as you create them */}
-      {/* 
-      
-      <Stack.Screen 
-        name="Settings" 
-        component={SettingsScreen}
-        options={{ title: 'Settings' }}
-      />
-      <Stack.Screen 
-        name="PrinterList" 
-        component={PrinterListScreen}
-        options={{ title: 'Available Printers' }}
-      />
-      */}
     </Stack.Navigator>
   );
 };

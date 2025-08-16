@@ -1,6 +1,8 @@
-const loginService = require('./login.service');
+const requestOtpService = require('./requestOtp.service');
+const verifyOtpService = require('./verifyOtp.service');
 const CustomError = require('../../util/error');
 
-const loginHandler = loginService({CustomError, env: process.env});
+const requestOtpHandler = requestOtpService({CustomError, env: process.env});
+const verifyOtpHandler = verifyOtpService({CustomError, env: process.env});
 
-module.exports = {loginHandler};
+module.exports = {requestOtpHandler, verifyOtpHandler};

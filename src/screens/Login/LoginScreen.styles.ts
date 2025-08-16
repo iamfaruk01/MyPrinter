@@ -54,6 +54,19 @@ export const styles = StyleSheet.create({
         color: '#333',
         paddingVertical: 0, // Remove default padding for better alignment
     },
+    inputBoxContainer: {
+        flexDirection: "row"
+    },
+    inputBox: {
+        width: 50,
+        height: 50,
+        borderWidth: 1,
+        borderColor: "#333",
+        textAlign: "center",
+        fontSize: 20,
+        margin: 5,
+        borderRadius: 8
+    },
     footer: {
         alignItems: 'center',
         justifyContent: 'center',

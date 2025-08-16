@@ -1,35 +1,11 @@
 const express = require('express');
 const connectDB = require('./config/dbConfig');
-// const { exec } = require('child_process');
-// const cors = require('cors');
-// const bodyParser = require('body-parser');
-// require('dotenv').config();
-
 const app = express();
-
-// Middleware Setup
-// app.use(cors()); // Enable CORS
-// app.use(express.json()); // Parse JSON bodies
-// app.use(bodyParser.urlencoded({ extended: false })); // Parse URL-encoded bodies
-
-// CORS
-// app.use((req, res, next) => {
-//     res.header('Access-Control-Allow-Origin', '*');
-//     res.header('Access-Control-Allow-Headers', '*');
-//     if (req.method === 'OPTIONS') {
-//         res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
-//         return res.status(200).json({});
-//     }
-//     next();
-// });
 
 // Middleware to parse JSON bodies
 app.use(express.json());
 
 connectDB();
-
-// Static Files
-app.use('/assets', express.static('assets'));
 
 // Routes
 app.use(require('./routes')); // Load all routes from routes/index.js

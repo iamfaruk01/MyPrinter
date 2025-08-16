@@ -21,7 +21,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
     setPhoneNumber,
     errorMessage,
     setErrorMessage,
-    handleLogin
+    requestOtp
   } = useLoginHandler();
 
   const inputRef = useRef<TextInput>(null);
@@ -33,7 +33,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
 
   return (
     <KeyboardAwareScrollView
-      style={{ flex: 1 }}
+      style={{ flex: 1 , backgroundColor: 'white'}}
       contentContainerStyle={{ flexGrow: 1 }}
       keyboardShouldPersistTaps="handled"
       enableOnAndroid={true}
@@ -63,7 +63,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
               maxLength={10}
               placeholderTextColor={'#A0A4A8'}
               returnKeyType='go'
-              onSubmitEditing={handleLogin}
+              onSubmitEditing={requestOtp}
             />
           </View>
           {errorMessage && (
@@ -76,15 +76,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
           <Text style={styles.termsText}>
             By continuing, you agree to the T&C and Privacy Policy
           </Text>
-
-          
-
           <TouchableOpacity
             style={[
               styles.nextButton,
               phoneNumber.length === 10 ? styles.nextButtonEnabled : styles.nextButtonDisabled
             ]}
-            onPress={handleLogin}
+            onPress={requestOtp}
             disabled={phoneNumber.length !== 10}
           >
             <Text style={[
