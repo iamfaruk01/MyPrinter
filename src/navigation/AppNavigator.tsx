@@ -1,9 +1,13 @@
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import HomeScreen from '../screens/Home/HomeScreen';
+import LoginScreen from '../screens/Login/LoginScreen';
+import OtpScreen from '../screens/Login/OtpScreen';
 
 // Define the navigation stack parameter list
 export type RootStackParamList = {
+  Login: undefined;
+  OtpScreen: undefined;
   Home: undefined;
   Print: undefined;
   Settings: undefined;
@@ -15,7 +19,7 @@ const Stack = createStackNavigator<RootStackParamList>();
 const AppNavigator: React.FC = () => {
   return (
     <Stack.Navigator
-      initialRouteName="Home"
+      initialRouteName="Login"
       screenOptions={{
         headerStyle: {
           backgroundColor: '#2196F3',
@@ -30,8 +34,16 @@ const AppNavigator: React.FC = () => {
         },
       }}
     >
-      <Stack.Screen 
-        name="Home" 
+      <Stack.Screen
+        name="Login"
+        component={LoginScreen}
+        options={{ 
+          title: 'Login', 
+          
+        }}
+      />
+      <Stack.Screen
+        name="Home"
         component={HomeScreen}
         options={{
           title: 'My Printer',
@@ -40,13 +52,15 @@ const AppNavigator: React.FC = () => {
           },
         }}
       />
+      <Stack.Screen 
+        name="OtpScreen" 
+        component={OtpScreen}
+        options={{ title: 'OTP' }}
+      />
+
       {/* Add other screens here as you create them */}
       {/* 
-      <Stack.Screen 
-        name="Print" 
-        component={PrintScreen}
-        options={{ title: 'Print Document' }}
-      />
+      
       <Stack.Screen 
         name="Settings" 
         component={SettingsScreen}

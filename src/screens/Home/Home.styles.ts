@@ -2,7 +2,7 @@ import { StyleSheet } from "react-native";
 export const styles = StyleSheet.create({
     container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#ebe5e5ff',
   },
   scrollContent: {
     padding: 16,
@@ -92,6 +92,7 @@ export const styles = StyleSheet.create({
     fontWeight: '500',
   },
   actionsContainer: {
+    padding: 16,
     marginBottom: 32,
   },
   actionButton: {
@@ -104,6 +105,10 @@ export const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
+  },
+  disabledButton: {
+    backgroundColor: '#ccc',
+    opacity: 0.8,          
   },
   primaryButton: {
     backgroundColor: '#1976D2',
