@@ -3,7 +3,7 @@ function CustomError(err) {
 
     return Object.freeze({
         handle: function () {
-            return { statusCode, data: { message } };
+            return { statusCode, body: { message } };
         }
     });
 }

@@ -52,7 +52,7 @@ const AppNavigator: React.FC = () => {
       <Stack.Screen 
         name="OtpScreen" 
         component={OtpScreen}
-        options={{ title: 'OTP' }}
+        options={{ title: 'Verify OTP' }}
       />
 
     </Stack.Navigator>

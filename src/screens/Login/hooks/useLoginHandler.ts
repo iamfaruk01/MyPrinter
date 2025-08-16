@@ -4,7 +4,6 @@ import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import config from "../../../../config";
-import { set } from "mongoose";
 
 type LoginScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Login'>;
 
@@ -14,56 +13,75 @@ export default function useLoginHandler() {
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [Otp, setOtp] = useState("");
 
-    // This ensures only numbers (0-9) are stored
     const setPhoneNumber = (text: string) => {
-        console.log("Setting phone number:", text);
-        const digitsOnly = text.replace(/[^0-9]/g, ""); // remove everything except digits
+        const digitsOnly = text.replace(/[^0-9]/g, "");
         setPhoneNumberState(digitsOnly);
     };
 
     const requestOtp = async () => {
         if (phoneNumber.length !== 10) {
             setErrorMessage("Phone number must be exactly 10 digits");
-        } else {
+            return;
+        }
+
+        try {
             setErrorMessage(null);
             const response = await fetch(config.API.REQUEST_OTP, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ phone: phoneNumber }),
             });
 
-            const responseText = await response.text();
-            const data = JSON.parse(responseText);
-
-            if (data.body.success) {
-                console.log("OTP sent successfully");
-                navigation.navigate('OtpScreen', {phone: phoneNumber});
+            const data = await response.json();
+            
+            if (response.ok && data?.body?.success) {
+                navigation.navigate('OtpScreen', { phone: phoneNumber });
             } else {
-                setErrorMessage(data.message || "Failed to send OTP");
+                setErrorMessage(data?.body?.message || "Failed to send OTP");
             }
+        } catch (error) {
+            setErrorMessage("Something went wrong. Please try again.");
         }
     };
 
-    const verifyOtp = () => {
+
+    const verifyOtp = async () => {
         if (Otp.length !== 4) {
             setErrorMessage("OTP must be exactly 4 digits");
-        } else {
-            setErrorMessage(null);
-            navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+            return;
         }
-    }
+
+        try {
+            setErrorMessage(null);
+            const response = await fetch(config.API.VERIFY_OTP, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ phone: phoneNumber, otp: Otp }),
+            });
+
+            const data = await response.json();
+            console.log("[useLoginHandler] data:", data);
+
+            if (response.ok && data?.body?.success) {
+                navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+            } else {
+                setErrorMessage(data?.body?.message || "Failed to verify OTP");
+            }
+        } catch (error) {
+            setErrorMessage("Something went wrong. Please try again.");
+        }
+    };
+
 
     const handleOtpChange = (
         text: string,
         index: number,
         inputsRef: (TextInput | null)[]
     ) => {
-        if(/^\d$/.test(text)) {
+        if (/^\d$/.test(text)) {
             const otpArray = Otp.split("");
             otpArray[index] = text;
-            
+
             const newOtp = otpArray.join("").padEnd(4, "");
             setOtp(newOtp);
 
@@ -82,7 +100,7 @@ export default function useLoginHandler() {
             }
         }
 
-        if(errorMessage) {
+        if (errorMessage) {
             setErrorMessage(null);
         }
     };

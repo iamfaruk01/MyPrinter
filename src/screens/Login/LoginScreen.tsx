@@ -33,7 +33,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
 
   return (
     <KeyboardAwareScrollView
-      style={{ flex: 1 , backgroundColor: 'white'}}
+      style={{ flex: 1, backgroundColor: 'white' }}
       contentContainerStyle={{ flexGrow: 1 }}
       keyboardShouldPersistTaps="handled"
       enableOnAndroid={true}
@@ -41,7 +41,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
       showsVerticalScrollIndicator={false}
       bounces={false}
     >
-      <View style={[styles.container, { flex: 1 }]}>
+      <View style={[styles.container]}>
         {/* Main Content */}
         <View style={{ flex: 1, paddingTop: 60 }}>
           <Text style={styles.title2}>What's your number?</Text>
@@ -81,16 +81,28 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
               styles.nextButton,
               phoneNumber.length === 10 ? styles.nextButtonEnabled : styles.nextButtonDisabled
             ]}
-            onPress={requestOtp}
-            disabled={phoneNumber.length !== 10}
+            onPress={() => {
+              if (phoneNumber.length === 10) {
+                requestOtp();
+              } else {
+                // keep/reopen the keyboard
+                inputRef.current?.focus();
+              }
+            }}
+            activeOpacity={phoneNumber.length === 10 ? 0.7 : 1} // prevent "press" animation when disabled
           >
-            <Text style={[
-              styles.buttonText,
-              phoneNumber.length === 10 ? styles.buttonTextEnabled : styles.buttonTextDisabled
-            ]}>
+            <Text
+              style={[
+                styles.buttonText,
+                phoneNumber.length === 10
+                  ? styles.buttonTextEnabled
+                  : styles.buttonTextDisabled
+              ]}
+            >
               Next
             </Text>
           </TouchableOpacity>
+
         </View>
       </View>
     </KeyboardAwareScrollView>

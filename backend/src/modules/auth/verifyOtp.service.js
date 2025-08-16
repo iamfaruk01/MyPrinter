@@ -4,7 +4,8 @@ const User = require('../../models/userModel');
 const verifyOtpService = ({ CustomError, env }) => {
     return async function verifyOtpHandler(httpRequest) {
         const { phone, otp } = httpRequest.body;
-
+        console.log("httpRequest body:", httpRequest.body);
+        console.log("Verify OTP request:", { phone, otp });
         if (!phone || !otp) {
             return CustomError({ message: "Phone and OTP are required", statusCode: 400 }).handle();
         }

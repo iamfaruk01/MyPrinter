@@ -6,11 +6,24 @@ export const styles = StyleSheet.create({
         backgroundColor: '#fff',
         padding: 20,
     },
+    header: {
+        alignItems: 'center',
+        marginBottom: 50,
+    },
     title: {
         fontSize: 24,
         fontWeight: 'bold',
         marginBottom: 20,
         color: '#333',
+    },
+    subtitle: {
+        fontSize: 16,
+        color: '#6b7280',
+        marginBottom: 4,
+    },
+    phoneNumber: {
+        fontSize: 14,
+        color: '#9ca3af',
     },
     title2: {
         fontSize: 20,
