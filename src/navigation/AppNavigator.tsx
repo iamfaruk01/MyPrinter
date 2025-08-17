@@ -1,19 +1,23 @@
 import React from 'react';
-import { createStackNavigator } from '@react-navigation/stack';
 import HomeScreen from '../screens/Home/HomeScreen';
 import LoginScreen from '../screens/Login/LoginScreen';
 import OtpScreen from '../screens/Login/OtpScreen';
+import CustomerDashboard from '../screens/Customer/Customer.Dashboard';
+import OwnerDashboard from '../screens/Owner/OwnerDashboard';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 // Define the navigation stack parameter list
 export type RootStackParamList = {
   Login: undefined;
-  OtpScreen: {phone: string};
-  Home: undefined;
+  OtpScreen: { phone: string };
+  Home: { phoneNumber: string };
+  CustomerDashboard: undefined;
+  OwnerDashboard: undefined;
 };
 
-const Stack = createStackNavigator<RootStackParamList>();
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
-const AppNavigator: React.FC = () => {
+const AppNavigator= () => {
   return (
     <Stack.Navigator
       initialRouteName="Login"
@@ -26,7 +30,7 @@ const AppNavigator: React.FC = () => {
           fontWeight: 'bold',
           fontSize: 18,
         },
-        cardStyle: {
+        contentStyle: {
           backgroundColor: '#f5f5f5',
         },
       }}
@@ -34,27 +38,35 @@ const AppNavigator: React.FC = () => {
       <Stack.Screen
         name="Login"
         component={LoginScreen}
-        options={{ 
-          title: 'Login', 
-          
-        }}
+        options={{ title: 'Login' }}
       />
       <Stack.Screen
         name="Home"
         component={HomeScreen}
         options={{
-          title: 'My Printer',
+          title: 'My Profile',
           headerStyle: {
             backgroundColor: '#1976D2',
           },
         }}
       />
-      <Stack.Screen 
-        name="OtpScreen" 
+      <Stack.Screen
+        name="OtpScreen"
         component={OtpScreen}
         options={{ title: 'Verify OTP' }}
       />
 
+      <Stack.Screen
+        name="CustomerDashboard"
+        component={CustomerDashboard}
+        options={{ title: 'My Printer' }}
+      />
+
+      <Stack.Screen
+        name='OwnerDashboard'
+        component={OwnerDashboard}
+        options={{ title: 'My Printer' }}
+      />
     </Stack.Navigator>
   );
 };

@@ -128,7 +128,7 @@ const OtpScreen: React.FC<OtpScreenProps> = ({ route }) => {
                         }}
                         activeOpacity={filledDigits === 4 ? 0.7 : 1}
                     >
-                        <Text style={stylesHome.actionButtonText}>Submit OTP</Text>
+                        <Text style={stylesHome.buttonText}>Submit OTP</Text>
                     </TouchableOpacity>
                 </View>
             </View>

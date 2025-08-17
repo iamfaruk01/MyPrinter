@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { TextInput } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, createStaticNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
+import {createNativeStackNavigator} from "@react-navigation/native-stack"
 import { RootStackParamList } from "../../../navigation/AppNavigator";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import config from "../../../../config";
 
 type LoginScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Login'>;
@@ -64,7 +66,16 @@ export default function useLoginHandler() {
             console.log("[useLoginHandler] data:", data);
 
             if (response.ok && data?.body?.success) {
-                navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+                if (data.body.token) {
+                    await AsyncStorage.setItem("authToken", data.body.token);
+                    console.log("[useLoginHandler] Token saved:", data.body.token);
+                }
+                navigation.reset({
+                    index: 0, routes: [{
+                        name: 'Home',
+                        params: { phone: phoneNumber }
+                    }]
+                });
             } else {
                 setErrorMessage(data?.body?.message || "Failed to verify OTP");
             }

@@ -1,9 +1,26 @@
 const express = require('express');
 const connectDB = require('./config/dbConfig');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const jwt = require('jsonwebtoken');
+
 const app = express();
 
-// Middleware to parse JSON bodies
-app.use(express.json());
+// Middleware Setup
+app.use(cors()); // Enable CORS
+app.use(express.json()); // Parse JSON bodies
+app.use(bodyParser.urlencoded({ extended: false })); // Parse URL-encoded bodies
+
+// CORS
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Headers', '*');
+    if (req.method === 'OPTIONS') {
+        res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+        return res.status(200).json({});
+    }
+    next();
+});
 
 connectDB();
 

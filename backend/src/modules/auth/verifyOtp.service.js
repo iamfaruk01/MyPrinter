@@ -1,5 +1,5 @@
 const User = require('../../models/userModel');
-// const jwt = require('jsonwebtoken');
+const {generateToken} = require('../../util/token');
 
 const verifyOtpService = ({ CustomError, env }) => {
     return async function verifyOtpHandler(httpRequest) {
@@ -22,18 +22,18 @@ const verifyOtpService = ({ CustomError, env }) => {
             await user.save();
 
             // Generate JWT
-            // const token = jwt.sign(
-            //     { id: user._id, phone: user.phone },
-            //     env.AUTH_KEY,
-            //     { expiresIn: "7d" }
-            // );
+            const token = generateToken(
+                { id: user._id, phone: user.phone },  // payload
+                "7d",                                // expiry
+                process.env.AUTH_KEY                         // secret key
+            );
 
             return {
                 statusCode: 200,
                 body: {
                     success: true,
                     message: "Login successful",
-                    // token
+                    token
                 }
             };
 

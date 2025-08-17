@@ -1,21 +1,26 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useContext } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
-  Keyboard
+  ActivityIndicator
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { styles } from './LoginScreen.styles';
-import { styles as stylesHome } from '../Home/Home.styles';
 import { TextInput } from 'react-native-gesture-handler';
 import useLoginHandler from './hooks/useLoginHandler';
 import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
+import { AuthContext } from '../../context/AuthContext';
+import { useNavigation } from '@react-navigation/native';
 
 type LoginScreenProps = StackScreenProps<RootStackParamList, 'Login'>;
 
-const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
+const LoginScreen: React.FC<LoginScreenProps> = () => {
+  const navigation = useNavigation<StackScreenProps<RootStackParamList>['navigation']>();
+  const { login, token, loading } = useContext(AuthContext);
+  const inputRef = useRef<TextInput>(null);
+
   const {
     phoneNumber,
     setPhoneNumber,
@@ -24,12 +29,31 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
     requestOtp
   } = useLoginHandler();
 
-  const inputRef = useRef<TextInput>(null);
-
   // Focus the input to show the keyboard
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    if (token) {
+      navigation.reset({
+        index: 0,
+        routes: [{
+          name: 'Home',
+          params: { phoneNumber: phoneNumber }
+        }]
+      });
+    }
+  }, [loading, token, navigation, phoneNumber]);
+  
+  // Conditional return must come after all hook calls
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#1976D2" />
+      </View>
+    );
+  }
 
   return (
     <KeyboardAwareScrollView
@@ -45,7 +69,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
         {/* Main Content */}
         <View style={{ flex: 1, paddingTop: 60 }}>
           <Text style={styles.title2}>What's your number?</Text>
-
           <View style={[styles.phoneInputContainer]}>
             <Text style={styles.countryCode}>+91</Text>
             <TextInput
@@ -102,7 +125,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
               Next
             </Text>
           </TouchableOpacity>
-
         </View>
       </View>
     </KeyboardAwareScrollView>
