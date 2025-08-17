@@ -23,7 +23,7 @@ export const styles = StyleSheet.create({
     },
     phoneNumber: {
         fontSize: 14,
-        color: '#9ca3af',
+        color: '#6b7280',
     },
     title2: {
         fontSize: 20,
@@ -71,14 +71,14 @@ export const styles = StyleSheet.create({
         flexDirection: "row"
     },
     inputBox: {
-        width: 50,
-        height: 50,
+        width: 60,
+        height: 60,
         borderWidth: 1,
-        borderColor: "#333",
+        borderColor: "#a2a2a2ff",
         textAlign: "center",
-        fontSize: 20,
+        fontSize: 28,
         margin: 5,
-        borderRadius: 8
+        borderRadius: 4
     },
     footer: {
         alignItems: 'center',
@@ -135,12 +135,12 @@ export const styles = StyleSheet.create({
         textAlign: 'center',
         marginTop: 8,
         fontWeight: '500',
-        backgroundColor: '#FFF5F5',
+        // backgroundColor: '#FFF5F5',
         paddingHorizontal: 12,
         paddingVertical: 8,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: '#FECACA',
+        // borderRadius: 8,
+        // borderWidth: 1,
+        // borderColor: '#FECACA',
         width: '100%',
     },
     // Loading state for button

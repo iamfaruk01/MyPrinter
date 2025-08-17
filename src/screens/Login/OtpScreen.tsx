@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, TextInput } from "react-native";
 import { styles } from "./LoginScreen.styles";
 import { styles as stylesHome } from "../Home/Home.styles";
@@ -10,32 +10,42 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view
 type OtpScreenProps = StackScreenProps<RootStackParamList, "OtpScreen">;
 
 const OtpScreen: React.FC<OtpScreenProps> = ({ route }) => {
-    const { phone } = route.params;
-    useEffect(() => {
-        setPhoneNumber(phone)
-    })
     const {
         Otp, setOtp,
         phoneNumber, setPhoneNumber,
         errorMessage, setErrorMessage,
         verifyOtp,
-        handleOtpChange
+        handleOtpChange, handleOtpBackspace
     } = useLoginHandler();
 
+    const { phone } = route.params;
     const inputsRef = useRef<(TextInput | null)[]>([]);
 
-    const focusFirstEmpty = () => {
-        const firstEmptyIndex = Otp.split("").findIndex((digit) => !digit);
-        const indexToFocus = firstEmptyIndex === -1 ? 0 : firstEmptyIndex;
-        inputsRef.current[indexToFocus]?.focus();
-    };
+    // Calculate how many digits are actually filled
+    const filledDigits = Otp.replace(/\s/g, "").length;
 
     const focusCurrentOtpBox = () => {
-        // Otp might be a string (e.g. "12") or an array, depending on your hook.
-        // Adjusting for string here:
-        const currentIndex = Otp.length < 4 ? Otp.length : 3;
+        const currentIndex = filledDigits < 4 ? filledDigits : 3;
         inputsRef.current[currentIndex]?.focus();
     };
+
+    const activeIndex = (() => {
+        const firstEmpty = Otp.split("").findIndex(val => val === " ");
+        return firstEmpty === -1 ? 3 : firstEmpty;
+    })();
+
+    useEffect(() => {
+        setPhoneNumber(phone);
+    }, [phone, setPhoneNumber]);
+
+    useEffect(() => {
+        // Focus the first input when component mounts
+        if (inputsRef.current[0]) {
+            setTimeout(() => {
+                inputsRef.current[0]?.focus();
+            }, 100);
+        }
+    }, []);
 
     return (
         <KeyboardAwareScrollView
@@ -63,19 +73,35 @@ const OtpScreen: React.FC<OtpScreenProps> = ({ route }) => {
                                 ref={(ref) => {
                                     inputsRef.current[i] = ref;
                                 }}
-                                style={styles.inputBox}
+                                style={[
+                                    styles.inputBox,
+                                    activeIndex === i && { borderColor: "#1976D2", borderWidth: 1 },
+                                    Otp[i] && Otp[i] !== " " && { borderColor: "#1976D2", borderWidth: 1 }
+
+                                ]}
                                 keyboardType="number-pad"
-                                value={Otp[i] ?? ""}
-                                onChangeText={(text) =>
-                                    handleOtpChange(text, i, inputsRef.current)
-                                }
+                                value={Otp[i] === " " ? "" : Otp[i] || ""} // Show empty string instead of space
+                                onChangeText={(text) => handleOtpChange(text, i, inputsRef.current)}
                                 maxLength={1}
                                 placeholderTextColor="black"
-                                autoFocus={i === 0}
                                 returnKeyType={"go"}
                                 onSubmitEditing={() => {
-                                    verifyOtp()
+                                    if (filledDigits === 4) {
+                                        verifyOtp();
+                                    }
                                 }}
+                                onKeyPress={({ nativeEvent }) => {
+                                    if (nativeEvent.key === "Backspace") {
+                                        handleOtpBackspace(i, inputsRef.current);
+                                    }
+                                }}
+                                onFocus={() => {
+                                    if (i !== activeIndex) {
+                                        inputsRef.current[activeIndex]?.focus();
+                                    }
+                                }}
+                                caretHidden={true} // Show cursor for better UX
+                                selectTextOnFocus={true}
                             />
                         ))}
                     </View>
@@ -89,24 +115,21 @@ const OtpScreen: React.FC<OtpScreenProps> = ({ route }) => {
                     <TouchableOpacity
                         style={[
                             styles.nextButton,
-                            Otp.length === 4
+                            filledDigits === 4 // Use filled digits count instead of total length
                                 ? styles.nextButtonEnabled
                                 : styles.nextButtonDisabled,
                         ]}
                         onPress={() => {
-                            if (Otp.length === 4) {
+                            if (filledDigits === 4) {
                                 verifyOtp();
                             } else {
                                 focusCurrentOtpBox();
                             }
                         }}
-                        activeOpacity={Otp.length === 4 ? 0.7 : 1}
-
+                        activeOpacity={filledDigits === 4 ? 0.7 : 1}
                     >
                         <Text style={stylesHome.actionButtonText}>Submit OTP</Text>
                     </TouchableOpacity>
-
-
                 </View>
             </View>
         </KeyboardAwareScrollView>

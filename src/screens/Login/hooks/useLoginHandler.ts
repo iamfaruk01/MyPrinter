@@ -11,7 +11,7 @@ export default function useLoginHandler() {
     const navigation = useNavigation<LoginScreenNavigationProp>();
     const [phoneNumber, setPhoneNumberState] = useState("");
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
-    const [Otp, setOtp] = useState("");
+    const [Otp, setOtp] = useState("    "); // 4 spaces initially
 
     const setPhoneNumber = (text: string) => {
         const digitsOnly = text.replace(/[^0-9]/g, "");
@@ -33,7 +33,7 @@ export default function useLoginHandler() {
             });
 
             const data = await response.json();
-            
+
             if (response.ok && data?.body?.success) {
                 navigation.navigate('OtpScreen', { phone: phoneNumber });
             } else {
@@ -44,9 +44,10 @@ export default function useLoginHandler() {
         }
     };
 
-
     const verifyOtp = async () => {
-        if (Otp.length !== 4) {
+        // Check if OTP has 4 actual digits (not spaces)
+        const otpDigits = Otp.replace(/\s/g, ""); // Remove all spaces
+        if (otpDigits.length !== 4) {
             setErrorMessage("OTP must be exactly 4 digits");
             return;
         }
@@ -56,7 +57,7 @@ export default function useLoginHandler() {
             const response = await fetch(config.API.VERIFY_OTP, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ phone: phoneNumber, otp: Otp }),
+                body: JSON.stringify({ phone: phoneNumber, otp: otpDigits }), // Send only digits
             });
 
             const data = await response.json();
@@ -72,34 +73,56 @@ export default function useLoginHandler() {
         }
     };
 
-
     const handleOtpChange = (
         text: string,
         index: number,
         inputsRef: (TextInput | null)[]
     ) => {
         if (/^\d$/.test(text)) {
+            // Valid digit entered
             const otpArray = Otp.split("");
             otpArray[index] = text;
+            setOtp(otpArray.join(""));
 
-            const newOtp = otpArray.join("").padEnd(4, "");
-            setOtp(newOtp);
-
+            // Move to next input if not the last one
             if (index < 3) {
-                inputsRef[index + 1]?.focus();
+                setTimeout(() => {
+                    inputsRef[index + 1]?.focus();
+                }, 10);
             }
         } else if (text === "") {
+            // Clear current digit
             const otpArray = Otp.split("");
-            otpArray[index] = "";
-
-            const newOtp = otpArray.join("").padEnd(4, "");
-            setOtp(newOtp);
-
-            if (index > 0) {
-                inputsRef[index - 1]?.focus();
-            }
+            otpArray[index] = " ";
+            setOtp(otpArray.join(""));
         }
 
+        // Clear error message when user starts typing
+        if (errorMessage) {
+            setErrorMessage(null);
+        }
+    };
+
+    const handleOtpBackspace = (
+        index: number,
+        inputsRef: (TextInput | null)[]
+    ) => {
+        const otpArray = Otp.split("");
+
+        if (Otp[index] && Otp[index] !== " ") {
+            // Clear current digit
+            otpArray[index] = " ";
+            setOtp(otpArray.join(""));
+        } else if (index > 0) {
+            // Move to previous input and clear it
+            otpArray[index - 1] = " ";
+            setOtp(otpArray.join(""));
+            setTimeout(() => {
+                inputsRef[index - 1]?.focus();
+            }, 10);
+        }
+
+        // Clear error message
         if (errorMessage) {
             setErrorMessage(null);
         }
@@ -111,6 +134,6 @@ export default function useLoginHandler() {
         Otp, setOtp,
         requestOtp,
         verifyOtp,
-        handleOtpChange
+        handleOtpChange, handleOtpBackspace
     };
 }
