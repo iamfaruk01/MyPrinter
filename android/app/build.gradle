@@ -84,6 +84,10 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+
+        // // Add these build config fields
+        // buildConfigField "boolean", "VisionCamera_enableCodeScanner", "true"
+        // buildConfigField "boolean", "VisionCamera_enableFrameProcessors", "false"
     }
     signingConfigs {
         debug {
@@ -105,6 +109,7 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
     }
+
 }
 
 dependencies {
