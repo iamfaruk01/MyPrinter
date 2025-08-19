@@ -99,7 +99,7 @@ const OwnerDashboard = () => {
                 }, 3000);
             } else {
                 console.error("❌ Error creating group:", err);
-                Alert.alert("Error", "Could not create network.");
+                Alert.alert("Error", "Could not create network.", err);
                 setIsLoading(false);
             }
         }
