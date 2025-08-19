@@ -31,9 +31,12 @@
     "react-native-gesture-handler": "^2.14.1",
     "react-native-keyboard-aware-scroll-view": "^0.9.5",
     "react-native-permissions": "^5.4.2",
+    "react-native-qrcode-svg": "^6.3.15",
     "react-native-safe-area-context": "^5.6.0",
     "react-native-screens": "^4.14.1",
-    "react-native-vision-camera": "^4.7.1"
+    "react-native-svg": "^15.12.1",
+    "react-native-vision-camera": "^4.7.1",
+    "react-native-wifi-p2p": "^3.6.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
