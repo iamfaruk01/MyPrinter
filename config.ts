@@ -1,4 +1,5 @@
-const BASE_URL = 'http://10.62.72.65:3000'
+// const BASE_URL = 'http://10.62.72.65:3000'
+const BASE_URL = 'https://myprinter.onrender.com'
 // const BASE_URL = 'http://192.168.83.135:3000'
 export default {
     BASE_URL,
