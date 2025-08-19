@@ -1,11 +1,11 @@
-const { Schema, model } = require("mongoose");
+const mongoose = require('mongoose');
 
-const userSchema = new Schema({
+const userSchema = new mongoose.Schema({
     phone: {
         type: String,
         required: true,
         unique: true,
-        maxlength: 13
+        trim: true
     },
     otp: {
         type: String,
@@ -15,12 +15,34 @@ const userSchema = new Schema({
         type: Date,
         default: null
     },
-    createdAt: {
-        type: Date,
-        default: Date.now
+    isVerified: {
+        type: Boolean,
+        default: false
     },
+    userType: {
+        type: String,
+        enum: ['owner', 'customer'],
+        default: null
+    },
+    profileCompleted: {
+        type: Boolean,
+        default: false
+    },
+    
+    // Owner specific fields
+    printerModel: {
+        type: String,
+        required: function() { return this.userType === 'owner'; }
+    },
+    upiId: {
+        type: String,
+        required: function() { return this.userType === 'owner'; }
+    }
+}, {
+    timestamps: true
 });
 
-const userModel = model("users", userSchema)
+// Index for performance
+// userSchema.index({ phone: 1 });
 
-module.exports = userModel
+module.exports = mongoose.model('users', userSchema);

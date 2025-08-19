@@ -1,11 +1,11 @@
 const User = require('../../models/userModel');
-// const jwt = require('jsonwebtoken');
+const {generateToken} = require('../../util/token');
 
 const verifyOtpService = ({ CustomError, env }) => {
     return async function verifyOtpHandler(httpRequest) {
         const { phone, otp } = httpRequest.body;
-        console.log("httpRequest body:", httpRequest.body);
-        console.log("Verify OTP request:", { phone, otp });
+        // console.log("httpRequest body:", httpRequest.body);
+        // console.log("Verify OTP request:", { phone, otp });
         if (!phone || !otp) {
             return CustomError({ message: "Phone and OTP are required", statusCode: 400 }).handle();
         }
@@ -19,21 +19,23 @@ const verifyOtpService = ({ CustomError, env }) => {
             // Clear OTP
             user.otp = null;
             user.otpExpiry = null;
+            user.isVerified = true;
+            
             await user.save();
 
             // Generate JWT
-            // const token = jwt.sign(
-            //     { id: user._id, phone: user.phone },
-            //     env.AUTH_KEY,
-            //     { expiresIn: "7d" }
-            // );
+            const token = generateToken(
+                { id: user._id, phone: user.phone },  // payload
+                "7d",                                // expiry
+                process.env.AUTH_KEY                         // secret key
+            );
 
             return {
                 statusCode: 200,
                 body: {
                     success: true,
                     message: "Login successful",
-                    // token
+                    token
                 }
             };
 

@@ -1,30 +1,61 @@
+// HomeScreen.tsx
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Alert,
-  StatusBar,
-  ActivityIndicator,
-  Modal,
-  FlatList,
-} from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { styles } from './Home.styles';
+import { View, Text, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
+import { styles } from './index.styles';
+import usePrinterManagement from './hooks/usePrinterManagement';
+import { PrinterStatusCard } from '../../components/HomeScreen/PrinterStatusCard';
+import QRScreen from '../../components/QRScanner/QRScanner';
 
-const index: React.FC = () => {
+const HomeScreen: React.FC = () => {
+  const {
+    connectedPrinter,
+    handleTestConnection,
+    checkPrinterConnection,
+    getStatusColor,
+    getStatusText,
+    loadPrintJobs,
+  } = usePrinterManagement();
+
+  const [showQRScreen, setShowQRScreen] = useState(false);
+
+  // useEffect(() => {
+  //   checkPrinterConnection();
+  //   loadPrintJobs();
+  // }, [checkPrinterConnection, loadPrintJobs]); // Added dependencies
+
+  const handleQRClose = () => {
+    setShowQRScreen(false);
+  };
+
+  if (showQRScreen) {
+    return <QRScreen onClose={handleQRClose} />;
+  }
+
   return (
-    <View>
-        <TouchableOpacity style={styles.actionButton}>
-            <Text>Owner</Text>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#1976D2" />
+
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <PrinterStatusCard
+          connectedPrinter={connectedPrinter}
+          handleTestConnection={handleTestConnection}
+          checkPrinterConnection={checkPrinterConnection}
+          getStatusColor={getStatusColor}
+          getStatusText={getStatusText}
+          showDetails={!!connectedPrinter}
+        />
+      </ScrollView>
+
+      <View style={styles.actionsContainer}>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.primaryButton]}
+          onPress={() => setShowQRScreen(true)}
+        >
+          <Text style={styles.actionButtonText}>Scan the QR code to share file</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton}>
-            <Text>User</Text>
-        </TouchableOpacity>
+      </View>
     </View>
   );
 };
 
-export default index;
+export default HomeScreen;
