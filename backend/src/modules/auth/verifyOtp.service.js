@@ -4,8 +4,8 @@ const {generateToken} = require('../../util/token');
 const verifyOtpService = ({ CustomError, env }) => {
     return async function verifyOtpHandler(httpRequest) {
         const { phone, otp } = httpRequest.body;
-        console.log("httpRequest body:", httpRequest.body);
-        console.log("Verify OTP request:", { phone, otp });
+        // console.log("httpRequest body:", httpRequest.body);
+        // console.log("Verify OTP request:", { phone, otp });
         if (!phone || !otp) {
             return CustomError({ message: "Phone and OTP are required", statusCode: 400 }).handle();
         }
@@ -19,6 +19,8 @@ const verifyOtpService = ({ CustomError, env }) => {
             // Clear OTP
             user.otp = null;
             user.otpExpiry = null;
+            user.isVerified = true;
+            
             await user.save();
 
             // Generate JWT

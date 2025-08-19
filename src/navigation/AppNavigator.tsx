@@ -65,7 +65,7 @@ const AppNavigator= () => {
       <Stack.Screen
         name='OwnerDashboard'
         component={OwnerDashboard}
-        options={{ title: 'My Printer' }}
+        options={{ title: 'My Printer - Owner' }}
       />
     </Stack.Navigator>
   );

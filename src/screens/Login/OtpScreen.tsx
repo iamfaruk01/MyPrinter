@@ -6,19 +6,21 @@ import { StackScreenProps } from "@react-navigation/stack";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import useLoginHandler from "./hooks/useLoginHandler";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type OtpScreenProps = StackScreenProps<RootStackParamList, "OtpScreen">;
 
 const OtpScreen: React.FC<OtpScreenProps> = ({ route }) => {
     const {
         Otp, setOtp,
-        phoneNumber, setPhoneNumber,
+        phone, setPhone,
         errorMessage, setErrorMessage,
         verifyOtp,
         handleOtpChange, handleOtpBackspace
     } = useLoginHandler();
 
-    const { phone } = route.params;
+    console.log("[OtpScreen] phone from use:", phone);
+    console.log("[OtpScreen] phone from storage: ", AsyncStorage.getItem("phone"))
     const inputsRef = useRef<(TextInput | null)[]>([]);
 
     // Calculate how many digits are actually filled
@@ -35,8 +37,8 @@ const OtpScreen: React.FC<OtpScreenProps> = ({ route }) => {
     })();
 
     useEffect(() => {
-        setPhoneNumber(phone);
-    }, [phone, setPhoneNumber]);
+        setPhone(route.params.phone);
+    }, [route.params.phone, setPhone]);
 
     useEffect(() => {
         // Focus the first input when component mounts

@@ -7,6 +7,7 @@ export default {
         VERIFY_OTP: `${BASE_URL}/auth/verify-otp`,
         SAVE_OWNER_PROFILE: `${BASE_URL}/owner/save`,
         SAVE_CUSTOMER_PROFILE: `${BASE_URL}/customer/save`,
+        CHECK_IS_PROFILE_COMPLETED: `${BASE_URL}/isProfileCompleted`
     }
 };
 

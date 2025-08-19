@@ -22,8 +22,8 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
   const inputRef = useRef<TextInput>(null);
 
   const {
-    phoneNumber,
-    setPhoneNumber,
+    phone,
+    setPhone,
     errorMessage,
     setErrorMessage,
     requestOtp
@@ -40,11 +40,11 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
         index: 0,
         routes: [{
           name: 'Home',
-          params: { phoneNumber: phoneNumber }
+          params: { phone: phone }
         }]
       });
     }
-  }, [loading, token, navigation, phoneNumber]);
+  }, [loading, token, navigation, phone]);
   
   // Conditional return must come after all hook calls
   if (loading) {
@@ -78,9 +78,9 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
               keyboardType='phone-pad'
               textContentType="telephoneNumber"
               autoComplete="tel-national"
-              value={phoneNumber}
+              value={phone}
               onChangeText={(text) => {
-                setPhoneNumber(text);
+                setPhone(text);
                 if (errorMessage) setErrorMessage(null);
               }}
               maxLength={10}
@@ -102,22 +102,22 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
           <TouchableOpacity
             style={[
               styles.nextButton,
-              phoneNumber.length === 10 ? styles.nextButtonEnabled : styles.nextButtonDisabled
+              phone.length === 10 ? styles.nextButtonEnabled : styles.nextButtonDisabled
             ]}
             onPress={() => {
-              if (phoneNumber.length === 10) {
+              if (phone.length === 10) {
                 requestOtp();
               } else {
                 // keep/reopen the keyboard
                 inputRef.current?.focus();
               }
             }}
-            activeOpacity={phoneNumber.length === 10 ? 0.7 : 1} // prevent "press" animation when disabled
+            activeOpacity={phone.length === 10 ? 0.7 : 1} // prevent "press" animation when disabled
           >
             <Text
               style={[
                 styles.buttonText,
-                phoneNumber.length === 10
+                phone.length === 10
                   ? styles.buttonTextEnabled
                   : styles.buttonTextDisabled
               ]}

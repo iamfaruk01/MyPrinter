@@ -1,24 +1,22 @@
-import React, { use, useEffect } from 'react';
-import { View, ScrollView, StatusBar, TouchableOpacity } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, ScrollView, StatusBar, TouchableOpacity, Text } from 'react-native';
 import { styles } from './Home.styles';
 import { useHomeScreen } from './hooks/useHomeScreen';
-import ProfileSelection from '../../components/HomeScreen/ProfileSelection';
-import OwnerProfileSetup from '../../components/HomeScreen/OwnerProfileSetup';
+import CombinedProfileSetup from '../../components/HomeScreen/CombinedProfileSetup';
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { RootStackParamList } from "../../navigation/AppNavigator";
-import { Text } from 'react-native-gesture-handler';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type LoginScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
-interface HomeScreenProps {
-  route: { params: { phoneNumber: string } };
-}
+// interface HomeScreenProps {
+//   route: { params: { phoneNumber: string } };
+// }
 
-const HomeScreen: React.FC<HomeScreenProps> = ({ route }) => {
-  const { phoneNumber } = route.params;
-  console.log("[HomeScreen] phoneNumber:", phoneNumber);
+const HomeScreen: React.FC = ({ }) => {
   const navigation = useNavigation<LoginScreenNavigationProp>();
+
   const {
     phone, setPhone,
     userType,
@@ -29,40 +27,29 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ route }) => {
     setUpiId,
     handleOwnerSubmit,
     handleCustomerSubmit,
-    handleLogout
+    handleLogout,
+    checkIsProfileCompleted
   } = useHomeScreen();
+
+  useEffect(() => {
+    if (phone) {
+      const checkProfile = async () => {
+        await checkIsProfileCompleted();
+      };
+      checkProfile();
+    }
+  }, [phone]);  // run only when phone is available
+
+
+  console.log("[HomeScreen] phone from storage: ", AsyncStorage.getItem("phone"))
 
   // Automatically navigate if customer is selected
   useEffect(() => {
     if (userType === 'customer') {
       handleCustomerSubmit();
-      navigation.reset({ index: 0, routes: [{ name: 'CustomerDashboard' }] }); // your dashboard route
+      navigation.reset({ index: 0, routes: [{ name: 'CustomerDashboard' }] });
     }
-  }, [userType]);
-
-  useEffect(()  => {
-    if (phoneNumber) {
-      setPhone(phoneNumber);
-    }
-  }),[];
-
-  const renderProfileSetup = () => {
-    if (userType === '') {
-      return <ProfileSelection setUserType={setUserType} />;
-    } else if (userType === 'owner') {
-      return (
-        <OwnerProfileSetup
-          printerModel={printerModel}
-          setPrinterModel={setPrinterModel}
-          upiId={upiId}
-          setUpiId={setUpiId}
-          handleOwnerSubmit={handleOwnerSubmit}
-        />
-      );
-    }
-    // We no longer render CustomerProfile for customer
-    return null;
-  };
+  }, [userType, handleCustomerSubmit, navigation]);
 
   return (
     <View style={styles.container}>
@@ -73,7 +60,15 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ route }) => {
         </View>
       </TouchableOpacity>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {renderProfileSetup()}
+        <CombinedProfileSetup
+          userType={userType}
+          setUserType={setUserType}
+          printerModel={printerModel}
+          setPrinterModel={setPrinterModel}
+          upiId={upiId}
+          setUpiId={setUpiId}
+          handleOwnerSubmit={handleOwnerSubmit}
+        />
       </ScrollView>
     </View>
   );

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { TextInput } from "react-native";
 import { useNavigation, createStaticNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
-import {createNativeStackNavigator} from "@react-navigation/native-stack"
+import { createNativeStackNavigator } from "@react-navigation/native-stack"
 import { RootStackParamList } from "../../../navigation/AppNavigator";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import config from "../../../../config";
@@ -11,33 +11,44 @@ type LoginScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Login'
 
 export default function useLoginHandler() {
     const navigation = useNavigation<LoginScreenNavigationProp>();
-    const [phoneNumber, setPhoneNumberState] = useState("");
+    const [phone, setPhoneState] = useState("");
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [Otp, setOtp] = useState("    "); // 4 spaces initially
 
-    const setPhoneNumber = (text: string) => {
-        const digitsOnly = text.replace(/[^0-9]/g, "");
-        setPhoneNumberState(digitsOnly);
+    const setPhone = async (text: string) => {
+        try {
+            const digitsOnly = text.replace(/[^0-9]/g, "");
+            setPhoneState(digitsOnly);
+            // Store only the digits string, not the state object
+            await AsyncStorage.setItem("phone", JSON.stringify({ phone: digitsOnly }));
+
+            // Verify what was stored
+            const stored = await AsyncStorage.getItem("phone");
+            console.log("[useLoginHandler] Phone saved to storage:", stored);
+        } catch (error) {
+            console.error("[useLoginHandler] Error saving phone to storage:", error);
+        }
     };
 
     const requestOtp = async () => {
-        if (phoneNumber.length !== 10) {
+        if (phone.length !== 10) {
             setErrorMessage("Phone number must be exactly 10 digits");
             return;
         }
 
         try {
             setErrorMessage(null);
+            AsyncStorage.setItem("phone", phone)
             const response = await fetch(config.API.REQUEST_OTP, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ phone: phoneNumber }),
+                body: JSON.stringify({ phone: phone }),
             });
 
             const data = await response.json();
 
             if (response.ok && data?.body?.success) {
-                navigation.navigate('OtpScreen', { phone: phoneNumber });
+                navigation.navigate('OtpScreen', { phone: phone });
             } else {
                 setErrorMessage(data?.body?.message || "Failed to send OTP");
             }
@@ -59,7 +70,7 @@ export default function useLoginHandler() {
             const response = await fetch(config.API.VERIFY_OTP, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ phone: phoneNumber, otp: otpDigits }), // Send only digits
+                body: JSON.stringify({ phone: phone, otp: otpDigits }), // Send only digits
             });
 
             const data = await response.json();
@@ -73,7 +84,7 @@ export default function useLoginHandler() {
                 navigation.reset({
                     index: 0, routes: [{
                         name: 'Home',
-                        params: { phone: phoneNumber }
+                        params: { phone: phone }
                     }]
                 });
             } else {
@@ -140,7 +151,7 @@ export default function useLoginHandler() {
     };
 
     return {
-        phoneNumber, setPhoneNumber,
+        phone, setPhone,
         errorMessage, setErrorMessage,
         Otp, setOtp,
         requestOtp,

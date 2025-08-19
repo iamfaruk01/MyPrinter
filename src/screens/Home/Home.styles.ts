@@ -58,6 +58,12 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#1976D2',
   },
+  secondaryButtonPencil: {
+    flexDirection: 'row', 
+    justifyContent: 'space-between',
+     alignItems: 'center',
+     paddingHorizontal: 20
+  },
   buttonText: {
     color: '#fff',
     fontWeight: '600',
