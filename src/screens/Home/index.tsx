@@ -17,12 +17,6 @@ const HomeScreen: React.FC = () => {
   } = usePrinterManagement();
 
   const [showQRScreen, setShowQRScreen] = useState(false);
-
-  // useEffect(() => {
-  //   checkPrinterConnection();
-  //   loadPrintJobs();
-  // }, [checkPrinterConnection, loadPrintJobs]); // Added dependencies
-
   const handleQRClose = () => {
     setShowQRScreen(false);
   };

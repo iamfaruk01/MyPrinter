@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Button, TextInput, ActivityIndicator, Scr
 import { useHomeScreen } from '../Home/hooks/useHomeScreen';
 import { useOwnerDashboard } from './hooks/useOwnerDashboard';
 import { styles } from './OwnerDashboard.styles';
+import QRCode from 'react-native-qrcode-svg';
 
 const OwnerDashboard = () => {
   const { handleLogout } = useHomeScreen();
@@ -18,6 +19,7 @@ const OwnerDashboard = () => {
     handleConnect,
     handleSendMessage,
     handleStopAndReset,
+    qrData
   } = useOwnerDashboard();
 
   const renderIdleContent = () => (
@@ -35,6 +37,11 @@ const OwnerDashboard = () => {
   const renderActionContent = () => (
     <>
       <Text style={styles.title}>{status}...</Text>
+      {qrData && (
+        <View>
+          <QRCode value={qrData} size={200} />
+        </View>
+      )}
       {discoveredEndpoints.length === 0 ? (
         <ActivityIndicator size="large" color="#007AFF" />
       ) : (
@@ -45,6 +52,8 @@ const OwnerDashboard = () => {
               <Button title="Connect" onPress={() => handleConnect(endpoint.id)} />
             </View>
           ))}
+
+
         </ScrollView>
       )}
     </>
@@ -74,8 +83,8 @@ const OwnerDashboard = () => {
       {connectedEndpoint
         ? renderConnectedContent()
         : status === 'Discovering...' || status === 'Advertising...'
-        ? renderActionContent()
-        : renderIdleContent()}
+          ? renderActionContent()
+          : renderIdleContent()}
       {status !== 'Idle' && (
         <TouchableOpacity onPress={handleStopAndReset} style={[styles.button, styles.stopButton]}>
           <Text style={styles.buttonText}>Stop & Reset</Text>

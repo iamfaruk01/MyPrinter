@@ -34,6 +34,7 @@ export const useOwnerDashboard = () => {
   const [messageToSend, setMessageToSend] = useState('');
   const [receivedMessages, setReceivedMessages] = useState<string[]>([]);
   const [nearbyEventEmitter, setNearbyEventEmitter] = useState<NativeEventEmitter | null>(null);
+  const [qrData, setQrData] = useState<string | null>(null);
 
   useEffect(() => {
     Device.getDeviceName().then(setDeviceName);
@@ -113,7 +114,12 @@ export const useOwnerDashboard = () => {
     if (!NearbyModule) return;
     if (await handlePermissions()) {
       setStatus('Advertising...');
-      await NearbyModule.startAdvertising(deviceName);
+      try {
+        const result = await NearbyModule.startAdvertising(deviceName);
+        setQrData(JSON.stringify(result));
+      } catch(e) {
+        setStatus('Advertising failed');
+      }
     }
   };
 
@@ -159,5 +165,6 @@ export const useOwnerDashboard = () => {
     handleConnect,
     handleSendMessage,
     handleStopAndReset,
+    qrData
   };
 };

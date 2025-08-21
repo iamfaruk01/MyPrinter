@@ -10,6 +10,7 @@ import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.google.android.gms.nearby.Nearby
 import com.google.android.gms.nearby.connection.*
 import java.nio.charset.StandardCharsets
+import com.facebook.react.bridge.Promise
 
 class NearbyModule(private val reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
 
@@ -102,11 +103,22 @@ class NearbyModule(private val reactContext: ReactApplicationContext) : ReactCon
     }
 
     @ReactMethod
-    fun startAdvertising(deviceName: String) {
+    fun startAdvertising(deviceName: String, promise: Promise) {
         val advertisingOptions = AdvertisingOptions.Builder().setStrategy(Strategy.P2P_STAR).build()
         connectionsClient.startAdvertising(deviceName, SERVICE_ID, connectionLifecycleCallback, advertisingOptions)
-            .addOnSuccessListener { Log.d(TAG, "Advertising started") }
-            .addOnFailureListener { e -> Log.e(TAG, "Advertising failed", e) }
+            .addOnSuccessListener { 
+                Log.d(TAG, "Advertising started") 
+                // Return advertiser info back to JS so it can generate QR
+                val result = Arguments.createMap().apply {
+                    putString("deviceName", deviceName)
+                    putString("serviceId", SERVICE_ID)
+                }
+                promise.resolve(result)
+            }
+            .addOnFailureListener { e -> 
+                Log.e(TAG, "Advertising failed", e) 
+                promise.reject("ADVERTISING_FAILED", e)
+            }
     }
 
     @ReactMethod
