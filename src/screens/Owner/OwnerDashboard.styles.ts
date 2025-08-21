@@ -1,0 +1,84 @@
+import { StyleSheet } from "react-native";
+
+export const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+        backgroundColor: '#f5f5f5',
+    },
+    title: { fontSize: 24, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
+    subtitle: { fontSize: 16, color: '#666', textAlign: 'center', marginBottom: 40 },
+    button: {
+        backgroundColor: '#007AFF',
+        paddingVertical: 15,
+        paddingHorizontal: 30,
+        borderRadius: 25,
+        marginBottom: 20,
+        width: '80%',
+        alignItems: 'center'
+    },
+    discoverButton: { backgroundColor: '#34C759' },
+    buttonText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
+    stopButton: { backgroundColor: '#ff9500', position: 'absolute', bottom: 100 },
+    logoutButton: {
+        position: 'absolute',
+        bottom: 40,
+        backgroundColor: '#ff3b30',
+        paddingVertical: 12,
+        paddingHorizontal: 30,
+        borderRadius: 25
+    },
+    logoutButtonText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
+    statusText: { position: 'absolute', top: 60, fontSize: 16, color: '#333', fontWeight: 'bold' },
+    section: {
+        width: '100%',
+        marginTop: 20,
+        borderTopWidth: 1,
+        borderTopColor: '#ccc',
+        paddingTop: 10
+    },
+    subHeader: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
+    device: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
+        width: '100%'
+    },
+    input: {
+        borderWidth: 1,
+        borderColor: '#ccc',
+        padding: 10,
+        borderRadius: 5,
+        marginVertical: 10,
+        width: '100%',
+        minHeight: 40
+    },
+    message: {
+        padding: 8,
+        backgroundColor: '#e5e5ea',
+        borderRadius: 10,
+        marginTop: 5
+    },
+    centered: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center'
+    },
+    infoText: {
+        marginTop: 20,
+        fontSize: 16,
+        color: '#666'
+    },
+    emptyText: {
+        fontSize: 14,
+        color: '#999',
+        fontStyle: 'italic',
+        textAlign: 'center',
+        marginTop: 10
+    }
+});

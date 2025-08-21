@@ -84,6 +84,9 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+        // ndk {
+        //     abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
+        // }
 
         // // Add these build config fields
         // buildConfigField "boolean", "VisionCamera_enableCodeScanner", "true"
@@ -107,12 +110,17 @@ android {
         debug {
             signingConfig signingConfigs.debug
         }
+        // release {
+        //     signingConfig signingConfigs.release
+        //     minifyEnabled true
+        //     shrinkResources true
+        // proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         release {
         signingConfig signingConfigs.release
-        minifyEnabled true
-        shrinkResources true
-        proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
-    }
+        minifyEnabled false
+        shrinkResources false
+        }
+    
     }
 
 }
@@ -120,6 +128,10 @@ android {
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
+
+    //nearby connections
+    implementation("com.google.android.gms:play-services-nearby:19.3.0")
+    implementation 'com.google.android.gms:play-services-location:21.3.0'
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
