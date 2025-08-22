@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Alert, NativeModules, NativeEventEmitter, Platform, Linking } from 'react-native';
 import Device from 'react-native-device-info';
 import { PERMISSIONS, requestMultiple, checkMultiple, RESULTS, Permission } from 'react-native-permissions';
+import { pick, keepLocalCopy, DocumentPickerResponse } from '@react-native-documents/picker'
 
 const { NearbyModule } = NativeModules;
 
@@ -12,12 +13,30 @@ interface Endpoint {
 
 // Event interfaces to match native code
 interface EndpointFoundEvent {
-    endpointId: string;
-    endpointName: string;
+  endpointId: string;
+  endpointName: string;
+}
+
+interface FileTransfer {
+  payloadId: number;
+  filename: string;
+  status: 'IN_PROGRESS' | 'SUCCESS' | 'FAILURE' | 'CANCELED';
+  progress: number;
+  bytesTransferred?: number;
+  totalBytes?: number;
+}
+
+interface FileTransferUpdateEvent {
+  payloadId: number;
+  status: 'IN_PROGRESS' | 'SUCCESS' | 'FAILURE' | 'CANCELED';
+  progress: number;
+  bytesTransferred?: number;
+  totalBytes?: number;
+  filename?: string;
 }
 
 const getRequiredPermissions = (): Permission[] => {
-   const permissions: Permission[] = [PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION];
+  const permissions: Permission[] = [PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION];
   const androidVersion = typeof Platform.Version === 'string' ? parseInt(Platform.Version, 10) : Platform.Version;
 
   if (androidVersion >= 31) {
@@ -41,6 +60,7 @@ export const useOwnerDashboard = () => {
   const [receivedMessages, setReceivedMessages] = useState<string[]>([]);
   const [nearbyEventEmitter, setNearbyEventEmitter] = useState<NativeEventEmitter | null>(null);
   const [qrData, setQrData] = useState<string | null>(null);
+  const [fileTransfers, setFileTransfers] = useState<FileTransfer[]>([]);
 
   useEffect(() => {
     Device.getDeviceName().then(name => {
@@ -87,7 +107,6 @@ export const useOwnerDashboard = () => {
   useEffect(() => {
     if (!nearbyEventEmitter) return;
     const listeners = [
-      // --- CORRECTED to use endpointId and endpointName ---
       nearbyEventEmitter.addListener('onEndpointFound', (event: EndpointFoundEvent) => {
         setDiscoveredEndpoints(prev =>
           prev.some(e => e.id === event.endpointId) ? prev : [...prev, { id: event.endpointId, name: event.endpointName }]
@@ -96,7 +115,6 @@ export const useOwnerDashboard = () => {
       nearbyEventEmitter.addListener('onEndpointLost', (event: { endpointId: string }) => {
         setDiscoveredEndpoints(prev => prev.filter(e => e.id !== event.endpointId));
       }),
-      // --- CORRECTED to use endpointId and endpointName ---
       nearbyEventEmitter.addListener('onConnectionInitiated', (event: EndpointFoundEvent) => {
         Alert.alert(
           'Connection Request',
@@ -123,7 +141,48 @@ export const useOwnerDashboard = () => {
         setConnectedEndpoint(null);
       }),
       nearbyEventEmitter.addListener('onPayloadReceived', (event: { message: string }) => {
-        setReceivedMessages(prev => [...prev, `Peer: ${event.message}`]);
+        setReceivedMessages(prev => [...prev, event.message]);
+      }),
+      // IMPROVED file transfer progress handling
+      nearbyEventEmitter.addListener('onFileTransferUpdate', (event: FileTransferUpdateEvent) => {
+        console.log('[useOwnerDashboard] File transfer update:', event);
+        
+        setFileTransfers(prev => {
+          const existingIndex = prev.findIndex(transfer => transfer.payloadId === event.payloadId);
+          
+          if (existingIndex >= 0) {
+            // Update existing transfer
+            const updatedTransfers = [...prev];
+            updatedTransfers[existingIndex] = {
+              ...updatedTransfers[existingIndex],
+              status: event.status,
+              progress: event.progress,
+              bytesTransferred: event.bytesTransferred,
+              totalBytes: event.totalBytes,
+            };
+            return updatedTransfers;
+          } else {
+            // Create new transfer (for incoming files)
+            return [...prev, {
+              payloadId: event.payloadId,
+              filename: event.filename || 'Unknown file',
+              status: event.status,
+              progress: event.progress,
+              bytesTransferred: event.bytesTransferred,
+              totalBytes: event.totalBytes,
+            }];
+          }
+        });
+
+        // Remove completed transfers after a delay
+        if (event.status === 'SUCCESS' || event.status === 'FAILURE' || event.status === 'CANCELED') {
+          setTimeout(() => {
+            setFileTransfers(prev => prev.filter(transfer => 
+              transfer.payloadId !== event.payloadId || 
+              (transfer.status !== 'SUCCESS' && transfer.status !== 'FAILURE' && transfer.status !== 'CANCELED')
+            ));
+          }, 3000); // Remove after 3 seconds
+        }
       }),
     ];
     return () => listeners.forEach(l => l.remove());
@@ -154,7 +213,7 @@ export const useOwnerDashboard = () => {
       }
     }
   };
-  
+
   const handleConnect = async (targetDeviceName: string) => {
     if (!NearbyModule || !deviceName) return;
     if (!(await handlePermissions())) return;
@@ -167,20 +226,16 @@ export const useOwnerDashboard = () => {
         listener?.remove();
         reject(new Error("Device not found. Please try again."));
       }, 20000);
-      // --- CORRECTED to use endpointName from the event ---
       listener = nearbyEventEmitter?.addListener('onEndpointFound', (event: EndpointFoundEvent) => {
-        // Ensure endpointName is not null or undefined before calling startsWith
         if (event.endpointName && event.endpointName.startsWith(targetDeviceName)) {
           clearTimeout(timeout);
           listener?.remove();
-          // Resolve with the correct Endpoint interface
           resolve({ id: event.endpointId, name: event.endpointName });
         }
       });
     });
     try {
       const targetEndpoint = await findEndpointPromise;
-      // await NearbyModule.stopDiscovery();
       setStatus(`Connecting to ${targetEndpoint.name}...`);
       await NearbyModule.connectToEndpoint(targetEndpoint.id, deviceName);
     } catch (error: any) {
@@ -212,12 +267,49 @@ export const useOwnerDashboard = () => {
       setConnectedEndpoint(null);
       setReceivedMessages([]);
       setQrData(null);
+      setFileTransfers([]);
+    }
+  };
+
+  const handleSendFile = async () => {
+    if (!connectedEndpoint) {
+      Alert.alert("Not Connected", "You must be connected to a device to send a file.");
+      return;
+    }
+
+    try {
+      // 1. Open the document picker
+      const [result] = await pick();
+
+      console.log(`[useOwnerDashboard] Picked file: ${result.name}, URI: ${result.uri}`);
+
+      // 2. Call the native module to send the file
+      const transferInfo = await NearbyModule.sendFile(connectedEndpoint.id, result.uri);
+      
+      // 3. Add to file transfers with initial state
+      setFileTransfers(prev => [
+        ...prev,
+        {
+          payloadId: transferInfo.payloadId,
+          filename: transferInfo.filename || result.name,
+          status: 'IN_PROGRESS',
+          progress: 0,
+        },
+      ]);
+      
+      Alert.alert("Success", `Started sending file: ${result.name}`);
+      setReceivedMessages(prev => [...prev, `You: (Sending file) ${result.name}`]);
+
+    } catch (err) {
+      console.error('[useOwnerDashboard] File picker error:', err);
+      Alert.alert('Error', 'Failed to pick or send file.');
     }
   };
 
   return {
     status, deviceName, discoveredEndpoints, connectedEndpoint, messageToSend,
     setMessageToSend, receivedMessages, handleStartAdvertising, handleStartDiscovery,
-    handleConnect, handleSendMessage, handleStopAndReset, qrData
+    handleConnect, handleSendMessage, handleStopAndReset, qrData,
+    handleSendFile, fileTransfers
   };
 };

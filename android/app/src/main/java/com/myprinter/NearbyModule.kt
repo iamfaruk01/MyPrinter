@@ -1,5 +1,6 @@
 package com.myprinter
 
+import android.net.Uri
 import android.util.Log
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
@@ -10,6 +11,7 @@ import com.facebook.react.bridge.WritableMap
 import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.google.android.gms.nearby.Nearby
 import com.google.android.gms.nearby.connection.*
+import java.io.File
 import java.nio.charset.StandardCharsets
 
 class NearbyModule(private val reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
@@ -18,7 +20,9 @@ class NearbyModule(private val reactContext: ReactApplicationContext) : ReactCon
         Nearby.getConnectionsClient(reactContext)
     }
     private val discoveredEndpoints = mutableMapOf<String, String>()
-    
+    private val incomingFilePayloads = mutableMapOf<Long, Payload>()
+    private val filePayloadFilenames = mutableMapOf<Long, File>()
+
     companion object {
         private const val SERVICE_ID = "com.myprinter.nearby"
         private const val TAG = "NearbyModule"
@@ -54,8 +58,6 @@ class NearbyModule(private val reactContext: ReactApplicationContext) : ReactCon
     }
 
     private val connectionLifecycleCallback = object : ConnectionLifecycleCallback() {
-        // NOTE: The incorrect 'onAdvertisingStarted' function has been removed.
-
         override fun onConnectionInitiated(endpointId: String, connectionInfo: ConnectionInfo) {
             Log.d(TAG, "Connection Initiated from ${connectionInfo.endpointName} ($endpointId)")
             val params = Arguments.createMap().apply {
@@ -86,21 +88,98 @@ class NearbyModule(private val reactContext: ReactApplicationContext) : ReactCon
         }
     }
 
+    // FIXED PAYLOAD CALLBACK WITH PROPER PROGRESS TRACKING
     private val payloadCallback = object : PayloadCallback() {
         override fun onPayloadReceived(endpointId: String, payload: Payload) {
-            if (payload.type == Payload.Type.BYTES) {
-                val receivedMessage = String(payload.asBytes()!!, StandardCharsets.UTF_8)
-                Log.d(TAG, "Payload Received: $receivedMessage")
-                val params = Arguments.createMap().apply {
-                    putString("endpointId", endpointId)
-                    putString("message", receivedMessage)
+            when (payload.type) {
+                Payload.Type.BYTES -> {
+                    val data = String(payload.asBytes()!!, StandardCharsets.UTF_8)
+                    try {
+                        if (data.startsWith("METADATA:")) {
+                            val metadata = data.substringAfter("METADATA:").split(",")
+                            val payloadId = metadata[0].toLong()
+                            val filename = metadata[1]
+                            val file = File(reactContext.cacheDir, filename)
+                            filePayloadFilenames[payloadId] = file
+                            
+                            // Send initial file transfer event
+                            val params = Arguments.createMap().apply {
+                                putDouble("payloadId", payloadId.toDouble())
+                                putString("status", "IN_PROGRESS")
+                                putInt("progress", 0)
+                                putString("filename", filename)
+                            }
+                            sendEvent("onFileTransferUpdate", params)
+                        } else {
+                            val params = Arguments.createMap().apply { 
+                                putString("message", data) 
+                            }
+                            sendEvent("onPayloadReceived", params)
+                        }
+                    } catch (e: Exception) { 
+                        Log.e(TAG, "Error processing BYTES payload", e) 
+                    }
                 }
-                sendEvent("onPayloadReceived", params)
+                Payload.Type.STREAM -> {
+                    incomingFilePayloads[payload.id] = payload
+                    Log.d(TAG, "Received STREAM payload with ID: ${payload.id}")
+                }
+                else -> Log.d(TAG, "Received unknown payload type")
             }
         }
 
         override fun onPayloadTransferUpdate(endpointId: String, update: PayloadTransferUpdate) {
-            // Can be used for file transfer progress updates
+            val payloadId = update.payloadId
+            
+            // Calculate progress - handle division by zero
+            val progress = if (update.totalBytes > 0) {
+                (100.0 * update.bytesTransferred / update.totalBytes).toInt().coerceIn(0, 100)
+            } else {
+                0
+            }
+            
+            val statusString = when (update.status) {
+                PayloadTransferUpdate.Status.IN_PROGRESS -> "IN_PROGRESS"
+                PayloadTransferUpdate.Status.SUCCESS -> "SUCCESS"
+                PayloadTransferUpdate.Status.FAILURE -> "FAILURE"
+                PayloadTransferUpdate.Status.CANCELED -> "CANCELED"
+                else -> "UNKNOWN"
+            }
+            
+            Log.d(TAG, "Transfer Update - PayloadID: $payloadId, Status: $statusString, Progress: $progress%, Bytes: ${update.bytesTransferred}/${update.totalBytes}")
+            
+            // ALWAYS send progress updates for ALL statuses, not just on completion
+            val params = Arguments.createMap().apply {
+                putDouble("payloadId", payloadId.toDouble())
+                putString("status", statusString)
+                putInt("progress", progress)
+                putDouble("bytesTransferred", update.bytesTransferred.toDouble())
+                putDouble("totalBytes", update.totalBytes.toDouble())
+            }
+            sendEvent("onFileTransferUpdate", params)
+
+            // Handle completion logic
+            when (update.status) {
+                PayloadTransferUpdate.Status.SUCCESS -> {
+                    val payload = incomingFilePayloads.remove(payloadId)
+                    val file = filePayloadFilenames.remove(payloadId)
+                    if (payload != null && file != null) {
+                        Log.d(TAG, "File received successfully: ${file.absolutePath}")
+                        val successParams = Arguments.createMap().apply {
+                            putString("message", "File received: ${file.name}")
+                        }
+                        sendEvent("onPayloadReceived", successParams)
+                    }
+                }
+                PayloadTransferUpdate.Status.FAILURE, PayloadTransferUpdate.Status.CANCELED -> {
+                    incomingFilePayloads.remove(payloadId)
+                    filePayloadFilenames.remove(payloadId)
+                    Log.e(TAG, "File transfer failed/canceled for payloadId: $payloadId")
+                }
+                else -> {
+                    // IN_PROGRESS - do nothing special, just let the UI update
+                }
+            }
         }
     }
 
@@ -110,8 +189,6 @@ class NearbyModule(private val reactContext: ReactApplicationContext) : ReactCon
         connectionsClient.startAdvertising(deviceName, SERVICE_ID, connectionLifecycleCallback, advertisingOptions)
             .addOnSuccessListener {
                 Log.d(TAG, "Advertising started successfully.")
-                // The QR code only needs the device name for the other device to find it.
-                // The unique endpointId will be handled when the connection is initiated.
                 val result = Arguments.createMap().apply {
                     putString("deviceName", deviceName)
                 }
@@ -124,39 +201,112 @@ class NearbyModule(private val reactContext: ReactApplicationContext) : ReactCon
     }
 
     @ReactMethod
-    fun startDiscovery() {
+    fun startDiscovery(promise: Promise) {
         val discoveryOptions = DiscoveryOptions.Builder().setStrategy(Strategy.P2P_STAR).build()
         connectionsClient.startDiscovery(SERVICE_ID, endpointDiscoveryCallback, discoveryOptions)
-            .addOnSuccessListener { Log.d(TAG, "Discovery started") }
-            .addOnFailureListener { e -> Log.e(TAG, "Discovery failed", e) }
+            .addOnSuccessListener { 
+                Log.d(TAG, "Discovery started")
+                promise.resolve(true)
+            }
+            .addOnFailureListener { e -> 
+                Log.e(TAG, "Discovery failed", e)
+                promise.reject("DISCOVERY_FAILED", e)
+            }
     }
 
     @ReactMethod
-    fun connectToEndpoint(endpointId: String, localDeviceName: String) {
+    fun connectToEndpoint(endpointId: String, localDeviceName: String, promise: Promise) {
         Log.d(TAG, "Requesting connection to $endpointId as '$localDeviceName'")
         connectionsClient.requestConnection(localDeviceName, endpointId, connectionLifecycleCallback)
-            .addOnSuccessListener { Log.d(TAG, "Connection request to $endpointId sent successfully.") }
-            .addOnFailureListener { e -> Log.e(TAG, "Connection request to $endpointId failed.", e) }
+            .addOnSuccessListener { 
+                Log.d(TAG, "Connection request to $endpointId sent successfully.")
+                promise.resolve(true)
+            }
+            .addOnFailureListener { e -> 
+                Log.e(TAG, "Connection request to $endpointId failed.", e)
+                promise.reject("CONNECTION_FAILED", e)
+            }
     }
 
     @ReactMethod
-    fun acceptConnection(endpointId: String) {
+    fun acceptConnection(endpointId: String, promise: Promise) {
         connectionsClient.acceptConnection(endpointId, payloadCallback)
+            .addOnSuccessListener {
+                Log.d(TAG, "Accepted connection to $endpointId")
+                promise.resolve(true)
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "Failed to accept connection", e)
+                promise.reject("ACCEPT_FAILED", e)
+            }
     }
 
     @ReactMethod
-    fun sendPayload(endpointId: String, message: String) {
+    fun rejectConnection(endpointId: String, promise: Promise) {
+        connectionsClient.rejectConnection(endpointId)
+            .addOnSuccessListener {
+                Log.d(TAG, "Rejected connection to $endpointId")
+                promise.resolve(true)
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "Failed to reject connection", e)
+                promise.reject("REJECT_FAILED", e)
+            }
+    }
+
+    @ReactMethod
+    fun sendPayload(endpointId: String, message: String, promise: Promise) {
         val bytesPayload = Payload.fromBytes(message.toByteArray(StandardCharsets.UTF_8))
         connectionsClient.sendPayload(endpointId, bytesPayload)
+            .addOnSuccessListener {
+                promise.resolve(true)
+            }
+            .addOnFailureListener { e ->
+                promise.reject("PAYLOAD_FAILED", e)
+            }
+    }
+    
+    @ReactMethod
+    fun sendFile(endpointId: String, fileUriString: String, promise: Promise) {
+        try {
+            val fileUri = Uri.parse(fileUriString)
+            val pfd = reactContext.contentResolver.openFileDescriptor(fileUri, "r")
+            pfd?.let {
+                val filePayload = Payload.fromStream(it)
+                val filename = fileUri.lastPathSegment ?: "unknown_file"
+                val metadata = "METADATA:${filePayload.id},$filename"
+                val metadataPayload = Payload.fromBytes(metadata.toByteArray(StandardCharsets.UTF_8))
+                
+                // Send metadata first, then the file
+                connectionsClient.sendPayload(endpointId, metadataPayload).continueWith {
+                    connectionsClient.sendPayload(endpointId, filePayload)
+                }
+                
+                // Return the payloadId so JS can track this specific transfer
+                val result = Arguments.createMap().apply {
+                    putDouble("payloadId", filePayload.id.toDouble())
+                    putString("filename", filename)
+                }
+                promise.resolve(result)
+                
+                Log.d(TAG, "Started sending file: $filename with payloadId: ${filePayload.id}")
+            } ?: promise.reject("FILE_ERROR", "Could not open file descriptor.")
+        } catch (e: Exception) {
+            promise.reject("SEND_FILE_ERROR", "Failed to send file.", e)
+            Log.e(TAG, "Failed to send file", e)
+        }
     }
 
     @ReactMethod
-    fun stopAllEndpoints() {
+    fun stopAllEndpoints(promise: Promise) {
         connectionsClient.stopAllEndpoints()
         connectionsClient.stopAdvertising()
         connectionsClient.stopDiscovery()
         discoveredEndpoints.clear()
+        incomingFilePayloads.clear()
+        filePayloadFilenames.clear()
         Log.d(TAG, "Stopped all endpoints, advertising, and discovery.")
+        promise.resolve(true)
     }
 
     @ReactMethod

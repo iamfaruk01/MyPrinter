@@ -5,6 +5,7 @@ import QRScreen from "../../components/QRScanner/QRScanner";
 import { styles } from "./CustomerDashboard.styles";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useOwnerDashboard } from "../Owner/hooks/useOwnerDashboard";
+import FileTransferProgress from '../../components/Customer/FileTransferProgress'
 
 const CustomerDashboard: React.FC = () => {
     const { handleLogout } = useHomeScreen();
@@ -17,7 +18,9 @@ const CustomerDashboard: React.FC = () => {
         handleConnect,
         handleSendMessage,
         handleStopAndReset,
-    } = useOwnerDashboard(); // Removed unused handleStartDiscovery
+        handleSendFile,
+        fileTransfers
+    } = useOwnerDashboard();
 
     const [showQRScreen, setShowQRScreen] = useState(false);
 
@@ -54,7 +57,6 @@ const CustomerDashboard: React.FC = () => {
             { cancelable: true }
         );
     };
-
 
     const renderSearchingContent = () => (
         <View style={styles.container}>
@@ -122,19 +124,61 @@ const CustomerDashboard: React.FC = () => {
                 </View>
             </View>
             <View style={styles.chatContainer}>
-                <ScrollView style={styles.messageScrollView}>
+                <ScrollView style={styles.messageScrollView} showsVerticalScrollIndicator={false}>
                     {receivedMessages.map((msg, i) => (
                         <Text key={i} style={styles.messageText}>{msg}</Text>
                     ))}
                 </ScrollView>
+                
+                {/* File Transfer Progress Section - Improved Styling */}
+                {fileTransfers.length > 0 && (
+                    <View style={styles.transferSection}>
+                        <Text style={styles.transferSectionTitle}>File Transfers</Text>
+                        <ScrollView 
+                            style={styles.transferScrollView} 
+                            showsVerticalScrollIndicator={false}
+                            nestedScrollEnabled={true}
+                        >
+                            {fileTransfers.map(transfer => (
+                                <FileTransferProgress 
+                                    key={transfer.payloadId} 
+                                    transfer={transfer} 
+                                />
+                            ))}
+                        </ScrollView>
+                    </View>
+                )}
+                
+                {/* Send File Button */}
+                <View style={styles.actionButtonContainer}>
+                    <TouchableOpacity 
+                        style={styles.sendFileButton} 
+                        onPress={handleSendFile}
+                        activeOpacity={0.8}
+                    >
+                        <Text style={styles.sendFileButtonText}>📎 Send File</Text>
+                    </TouchableOpacity>
+                </View>
+                
+                {/* Message Input */}
                 <View style={styles.inputContainer}>
                     <TextInput
                         style={styles.input}
                         value={messageToSend}
                         onChangeText={setMessageToSend}
                         placeholder="Type a message..."
+                        multiline={false}
+                        returnKeyType="send"
+                        onSubmitEditing={handleSendMessage}
                     />
-                    <Button title="Send" onPress={handleSendMessage} disabled={!messageToSend.trim()} />
+                    <TouchableOpacity 
+                        style={[styles.sendButton, { opacity: messageToSend.trim() ? 1 : 0.5 }]} 
+                        onPress={handleSendMessage} 
+                        disabled={!messageToSend.trim()}
+                        activeOpacity={0.8}
+                    >
+                        <Text style={styles.sendButtonText}>Send</Text>
+                    </TouchableOpacity>
                 </View>
             </View>
             <View style={styles.connectionActions}>

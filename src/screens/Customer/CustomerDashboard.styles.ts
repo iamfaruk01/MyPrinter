@@ -154,15 +154,15 @@ export const styles = StyleSheet.create({
         textAlign: 'center',
         paddingHorizontal: 20,
     },
-    chatContainer: {
-        flex: 1,
-        width: '100%',
-        padding: 10,
-    },
-    messageScrollView: {
-        flex: 1,
-        width: '100%',
-    },
+    // chatContainer: {
+    //     flex: 1,
+    //     width: '100%',
+    //     padding: 10,
+    // },
+    // messageScrollView: {
+    //     flex: 1,
+    //     width: '100%',
+    // },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -171,26 +171,118 @@ export const styles = StyleSheet.create({
         borderTopColor: '#e0e0e0',
         backgroundColor: '#fff',
     },
-    input: {
-        flex: 1,
-        height: 40,
-        borderWidth: 1,
-        borderColor: '#ccc',
-        borderRadius: 20,
-        paddingHorizontal: 15,
-        marginRight: 10,
-        backgroundColor: '#fff',
+    // input: {
+    //     flex: 1,
+    //     height: 40,
+    //     borderWidth: 1,
+    //     borderColor: '#ccc',
+    //     borderRadius: 20,
+    //     paddingHorizontal: 15,
+    //     marginRight: 10,
+    //     backgroundColor: '#fff',
+    // },
+    // messageText: {
+    //     paddingVertical: 8,
+    //     paddingHorizontal: 12,
+    //     backgroundColor: '#e5e5ea',
+    //     borderRadius: 15,
+    //     marginTop: 5,
+    //     maxWidth: '80%',
+    //     alignSelf: 'flex-start', // Differentiates peer messages
+    // },
+    transferSection: {
+        marginVertical: 10,
+        paddingHorizontal: 16,
     },
-    messageText: {
-        paddingVertical: 8,
-        paddingHorizontal: 12,
-        backgroundColor: '#e5e5ea',
-        borderRadius: 15,
-        marginTop: 5,
-        maxWidth: '80%',
-        alignSelf: 'flex-start', // Differentiates peer messages
+    transferSectionTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#333',
+        marginBottom: 8,
+    },
+    transferScrollView: {
+        maxHeight: 150, // Limit height so it doesn't take up too much space
+        backgroundColor: '#f8f9fa',
+        borderRadius: 8,
+        padding: 8,
     },
 
+    // Action Button Container
+    actionButtonContainer: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+    },
+    sendFileButton: {
+        backgroundColor: '#007AFF',
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexDirection: 'row',
+    },
+    sendFileButtonText: {
+        color: '#ffffff',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+
+    // Improved Input Container
+    inputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        backgroundColor: '#ffffff',
+        borderTopWidth: 1,
+        borderTopColor: '#e0e0e0',
+    },
+    input: {
+        flex: 1,
+        borderWidth: 1,
+        borderColor: '#e0e0e0',
+        borderRadius: 20,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        marginRight: 8,
+        maxHeight: 100,
+        backgroundColor: '#f8f9fa',
+    },
+    sendButton: {
+        backgroundColor: '#007AFF',
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 20,
+        minWidth: 60,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    sendButtonText: {
+        color: '#ffffff',
+        fontSize: 14,
+        fontWeight: '600',
+    },
+
+    // Chat Container Improvements
+    chatContainer: {
+        flex: 1,
+        backgroundColor: '#ffffff',
+    },
+    messageScrollView: {
+        flex: 1,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+    },
+    messageText: {
+        fontSize: 14,
+        color: '#333',
+        marginBottom: 8,
+        padding: 12,
+        backgroundColor: '#f0f0f0',
+        borderRadius: 12,
+        alignSelf: 'flex-start',
+        maxWidth: '80%',
+    },
     qrDot: {
         width: 8,
         height: 8,
