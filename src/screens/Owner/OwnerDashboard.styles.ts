@@ -59,6 +59,33 @@ export const styles = StyleSheet.create({
         borderTopColor: '#ccc',
         paddingTop: 10
     },
+    // Add these styles
+    messageScrollView: {
+        flex: 1, // Ensures the scroll view takes up available space
+        width: '100%',
+        marginTop: 10,
+        paddingHorizontal: 10,
+    },
+    messageContainer: {
+        marginVertical: 4,
+    },
+    messageText: {
+        paddingVertical: 8,
+        paddingHorizontal: 14,
+        borderRadius: 18,
+        fontSize: 16,
+        maxWidth: '80%',
+    },
+    sentMessage: {
+        backgroundColor: '#007AFF', // Blue for sent messages
+        color: '#ffffff',
+        alignSelf: 'flex-end', // Aligns to the right
+    },
+    receivedMessage: {
+        backgroundColor: '#E5E5EA', // Grey for received messages
+        color: '#000000',
+        alignSelf: 'flex-start', // Aligns to the left
+    },
     subHeader: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
     device: {
         flexDirection: 'row',
