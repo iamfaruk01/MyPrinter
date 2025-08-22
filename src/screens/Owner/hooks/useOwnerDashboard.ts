@@ -47,6 +47,11 @@ const getRequiredPermissions = (): Permission[] => {
       PERMISSIONS.ANDROID.NEARBY_WIFI_DEVICES,
     );
   }
+  // For Android 9 (API 28) and below, we need to request storage permission
+  // to save files to the public Downloads folder.
+  if (androidVersion <= 28) {
+    permissions.push(PERMISSIONS.ANDROID.WRITE_EXTERNAL_STORAGE);
+  }
 
   return permissions;
 };
@@ -146,10 +151,10 @@ export const useOwnerDashboard = () => {
       // IMPROVED file transfer progress handling
       nearbyEventEmitter.addListener('onFileTransferUpdate', (event: FileTransferUpdateEvent) => {
         console.log('[useOwnerDashboard] File transfer update:', event);
-        
+
         setFileTransfers(prev => {
           const existingIndex = prev.findIndex(transfer => transfer.payloadId === event.payloadId);
-          
+
           if (existingIndex >= 0) {
             // Update existing transfer
             const updatedTransfers = [...prev];
@@ -177,8 +182,8 @@ export const useOwnerDashboard = () => {
         // Remove completed transfers after a delay
         if (event.status === 'SUCCESS' || event.status === 'FAILURE' || event.status === 'CANCELED') {
           setTimeout(() => {
-            setFileTransfers(prev => prev.filter(transfer => 
-              transfer.payloadId !== event.payloadId || 
+            setFileTransfers(prev => prev.filter(transfer =>
+              transfer.payloadId !== event.payloadId ||
               (transfer.status !== 'SUCCESS' && transfer.status !== 'FAILURE' && transfer.status !== 'CANCELED')
             ));
           }, 3000); // Remove after 3 seconds
@@ -285,7 +290,7 @@ export const useOwnerDashboard = () => {
 
       // 2. Call the native module to send the file
       const transferInfo = await NearbyModule.sendFile(connectedEndpoint.id, result.uri);
-      
+
       // 3. Add to file transfers with initial state
       setFileTransfers(prev => [
         ...prev,
@@ -296,7 +301,7 @@ export const useOwnerDashboard = () => {
           progress: 0,
         },
       ]);
-      
+
       Alert.alert("Success", `Started sending file: ${result.name}`);
       setReceivedMessages(prev => [...prev, `You: (Sending file) ${result.name}`]);
 

@@ -60,9 +60,9 @@ const CustomerDashboard: React.FC = () => {
 
     const renderSearchingContent = () => (
         <View style={styles.container}>
-            <ActivityIndicator size="large" color="#007AFF" />
-            <Text style={styles.statusTextLarge}>Searching...</Text>
-            <Text style={styles.subtitle}>{status}</Text>
+            <Button title="Close" onPress={handleStopAndReset}></Button>
+            <Text>Searching...</Text>
+            <Text>{status}</Text>
         </View>
     );
 

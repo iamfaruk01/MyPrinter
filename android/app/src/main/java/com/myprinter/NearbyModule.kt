@@ -12,7 +12,15 @@ import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.google.android.gms.nearby.Nearby
 import com.google.android.gms.nearby.connection.*
 import java.io.File
+import java.io.FileOutputStream
+import java.io.InputStream
+import java.io.OutputStream
 import java.nio.charset.StandardCharsets
+import android.content.ContentValues
+import android.os.Environment
+import android.provider.MediaStore
+import android.os.Build
+import android.provider.OpenableColumns
 
 class NearbyModule(private val reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
 
@@ -20,9 +28,7 @@ class NearbyModule(private val reactContext: ReactApplicationContext) : ReactCon
         Nearby.getConnectionsClient(reactContext)
     }
     private val discoveredEndpoints = mutableMapOf<String, String>()
-    private val incomingFilePayloads = mutableMapOf<Long, Payload>()
-    private val filePayloadFilenames = mutableMapOf<Long, File>()
-
+    private val filePayloadFilenames = mutableMapOf<Long, String>()
     companion object {
         private const val SERVICE_ID = "com.myprinter.nearby"
         private const val TAG = "NearbyModule"
@@ -88,7 +94,6 @@ class NearbyModule(private val reactContext: ReactApplicationContext) : ReactCon
         }
     }
 
-    // FIXED PAYLOAD CALLBACK WITH PROPER PROGRESS TRACKING
     private val payloadCallback = object : PayloadCallback() {
         override fun onPayloadReceived(endpointId: String, payload: Payload) {
             when (payload.type) {
@@ -99,10 +104,9 @@ class NearbyModule(private val reactContext: ReactApplicationContext) : ReactCon
                             val metadata = data.substringAfter("METADATA:").split(",")
                             val payloadId = metadata[0].toLong()
                             val filename = metadata[1]
-                            val file = File(reactContext.cacheDir, filename)
-                            filePayloadFilenames[payloadId] = file
                             
-                            // Send initial file transfer event
+                            filePayloadFilenames[payloadId] = filename
+                            
                             val params = Arguments.createMap().apply {
                                 putDouble("payloadId", payloadId.toDouble())
                                 putString("status", "IN_PROGRESS")
@@ -120,18 +124,75 @@ class NearbyModule(private val reactContext: ReactApplicationContext) : ReactCon
                         Log.e(TAG, "Error processing BYTES payload", e) 
                     }
                 }
+                
                 Payload.Type.STREAM -> {
-                    incomingFilePayloads[payload.id] = payload
-                    Log.d(TAG, "Received STREAM payload with ID: ${payload.id}")
+                    Thread {
+                        val filename = filePayloadFilenames[payload.id]
+                        if (filename == null) {
+                            Log.e(TAG, "Filename not found for stream payload ID: ${payload.id}")
+                            return@Thread
+                        }
+                        
+                        var inputStream: InputStream? = null
+                        var outputStream: OutputStream? = null
+
+                        // --- FIX 1: The 'try' block was missing here ---
+                        try {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                val resolver = reactContext.contentResolver
+                                val contentValues = ContentValues().apply {
+                                    put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
+                                    put(MediaStore.MediaColumns.MIME_TYPE, "application/octet-stream")
+                                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/myprinter")
+                                }
+                                val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+                                if (uri != null) {
+                                    outputStream = resolver.openOutputStream(uri)
+                                }
+                            } else {
+                                val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                                val myprinterDir = File(downloadsDir, "myprinter")
+                                if (!myprinterDir.exists()) {
+                                    myprinterDir.mkdirs()
+                                }
+                                val file = File(myprinterDir, filename)
+                                outputStream = FileOutputStream(file)
+                            }
+
+                            if (outputStream == null) {
+                                Log.e(TAG, "Failed to create output stream.")
+                                return@Thread
+                            }
+
+                            inputStream = payload.asStream()?.asInputStream()
+                            val buffer = ByteArray(4096)
+                            var bytesRead: Int
+                            while (inputStream?.read(buffer).also { bytesRead = it ?: -1 } != -1) {
+                                outputStream.write(buffer, 0, bytesRead)
+                            }
+                            outputStream.flush()
+                            Log.d(TAG, "Successfully wrote stream data to Downloads/myprinter folder: $filename")
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error reading from stream and writing to file", e)
+                        } finally {
+                            try {
+                                outputStream?.close()
+                                inputStream?.close()
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error closing streams", e)
+                            }
+                        }
+                    }.start()
                 }
+                
                 else -> Log.d(TAG, "Received unknown payload type")
             }
         }
 
+        // --- FIX 2: onPayloadTransferUpdate must be INSIDE the payloadCallback object ---
         override fun onPayloadTransferUpdate(endpointId: String, update: PayloadTransferUpdate) {
             val payloadId = update.payloadId
             
-            // Calculate progress - handle division by zero
             val progress = if (update.totalBytes > 0) {
                 (100.0 * update.bytesTransferred / update.totalBytes).toInt().coerceIn(0, 100)
             } else {
@@ -148,7 +209,6 @@ class NearbyModule(private val reactContext: ReactApplicationContext) : ReactCon
             
             Log.d(TAG, "Transfer Update - PayloadID: $payloadId, Status: $statusString, Progress: $progress%, Bytes: ${update.bytesTransferred}/${update.totalBytes}")
             
-            // ALWAYS send progress updates for ALL statuses, not just on completion
             val params = Arguments.createMap().apply {
                 putDouble("payloadId", payloadId.toDouble())
                 putString("status", statusString)
@@ -158,30 +218,24 @@ class NearbyModule(private val reactContext: ReactApplicationContext) : ReactCon
             }
             sendEvent("onFileTransferUpdate", params)
 
-            // Handle completion logic
             when (update.status) {
                 PayloadTransferUpdate.Status.SUCCESS -> {
-                    val payload = incomingFilePayloads.remove(payloadId)
                     val file = filePayloadFilenames.remove(payloadId)
-                    if (payload != null && file != null) {
-                        Log.d(TAG, "File received successfully: ${file.absolutePath}")
+                    if (file != null) {
                         val successParams = Arguments.createMap().apply {
-                            putString("message", "File received: ${file.name}")
+                            putString("message", "File received: $file")
                         }
                         sendEvent("onPayloadReceived", successParams)
                     }
                 }
                 PayloadTransferUpdate.Status.FAILURE, PayloadTransferUpdate.Status.CANCELED -> {
-                    incomingFilePayloads.remove(payloadId)
                     filePayloadFilenames.remove(payloadId)
                     Log.e(TAG, "File transfer failed/canceled for payloadId: $payloadId")
                 }
-                else -> {
-                    // IN_PROGRESS - do nothing special, just let the UI update
-                }
+                else -> {}
             }
         }
-    }
+    } // <-- End of payloadCallback object
 
     @ReactMethod
     fun startAdvertising(deviceName: String, promise: Promise) {
@@ -209,7 +263,7 @@ class NearbyModule(private val reactContext: ReactApplicationContext) : ReactCon
                 promise.resolve(true)
             }
             .addOnFailureListener { e -> 
-                Log.e(TAG, "Discovery failed", e)
+                Log.d(TAG, "Discovery failed", e)
                 promise.reject("DISCOVERY_FAILED", e)
             }
     }
@@ -267,35 +321,47 @@ class NearbyModule(private val reactContext: ReactApplicationContext) : ReactCon
     }
     
     @ReactMethod
-    fun sendFile(endpointId: String, fileUriString: String, promise: Promise) {
-        try {
-            val fileUri = Uri.parse(fileUriString)
-            val pfd = reactContext.contentResolver.openFileDescriptor(fileUri, "r")
-            pfd?.let {
-                val filePayload = Payload.fromStream(it)
-                val filename = fileUri.lastPathSegment ?: "unknown_file"
-                val metadata = "METADATA:${filePayload.id},$filename"
-                val metadataPayload = Payload.fromBytes(metadata.toByteArray(StandardCharsets.UTF_8))
-                
-                // Send metadata first, then the file
-                connectionsClient.sendPayload(endpointId, metadataPayload).continueWith {
-                    connectionsClient.sendPayload(endpointId, filePayload)
+fun sendFile(endpointId: String, fileUriString: String, promise: Promise) {
+    try {
+        val fileUri = Uri.parse(fileUriString)
+        
+        // --- START OF FILENAME FIX ---
+        var filename = "unknown_file"
+        // Use ContentResolver to get the real file name
+        reactContext.contentResolver.query(fileUri, null, null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (nameIndex != -1) {
+                    filename = cursor.getString(nameIndex)
                 }
-                
-                // Return the payloadId so JS can track this specific transfer
-                val result = Arguments.createMap().apply {
-                    putDouble("payloadId", filePayload.id.toDouble())
-                    putString("filename", filename)
-                }
-                promise.resolve(result)
-                
-                Log.d(TAG, "Started sending file: $filename with payloadId: ${filePayload.id}")
-            } ?: promise.reject("FILE_ERROR", "Could not open file descriptor.")
-        } catch (e: Exception) {
-            promise.reject("SEND_FILE_ERROR", "Failed to send file.", e)
-            Log.e(TAG, "Failed to send file", e)
+            }
         }
+        // --- END OF FILENAME FIX ---
+        
+        val pfd = reactContext.contentResolver.openFileDescriptor(fileUri, "r")
+        pfd?.let {
+            val filePayload = Payload.fromStream(it)
+            // Now we use the reliably-found filename
+            val metadata = "METADATA:${filePayload.id},$filename"
+            val metadataPayload = Payload.fromBytes(metadata.toByteArray(StandardCharsets.UTF_8))
+            
+            connectionsClient.sendPayload(endpointId, metadataPayload).continueWith {
+                connectionsClient.sendPayload(endpointId, filePayload)
+            }
+            
+            val result = Arguments.createMap().apply {
+                putDouble("payloadId", filePayload.id.toDouble())
+                putString("filename", filename)
+            }
+            promise.resolve(result)
+            
+            Log.d(TAG, "Started sending file: $filename with payloadId: ${filePayload.id}")
+        } ?: promise.reject("FILE_ERROR", "Could not open file descriptor.")
+    } catch (e: Exception) {
+        promise.reject("SEND_FILE_ERROR", "Failed to send file.", e)
+        Log.e(TAG, "Failed to send file", e)
     }
+}
 
     @ReactMethod
     fun stopAllEndpoints(promise: Promise) {
@@ -303,7 +369,6 @@ class NearbyModule(private val reactContext: ReactApplicationContext) : ReactCon
         connectionsClient.stopAdvertising()
         connectionsClient.stopDiscovery()
         discoveredEndpoints.clear()
-        incomingFilePayloads.clear()
         filePayloadFilenames.clear()
         Log.d(TAG, "Stopped all endpoints, advertising, and discovery.")
         promise.resolve(true)

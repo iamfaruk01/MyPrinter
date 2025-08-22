@@ -55,7 +55,7 @@ export const styles = StyleSheet.create({
     // Main Dashboard Styles
     container: {
         flex: 1,
-        justifyContent: 'flex-end',
+        justifyContent: 'center',
         backgroundColor: COLORS.background,
     },
     title: { fontSize: 24, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
@@ -147,6 +147,7 @@ export const styles = StyleSheet.create({
         color: '#333',
         marginTop: 20,
         marginBottom: 10,
+        alignSelf: "center"
     },
     subtitle: {
         fontSize: 16,
