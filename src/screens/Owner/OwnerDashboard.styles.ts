@@ -8,7 +8,7 @@ export const styles = StyleSheet.create({
         padding: 20,
         backgroundColor: '#f5f5f5',
     },
-    title: { fontSize: 24, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
+    title: { fontSize: 24, fontWeight: 'bold', marginBottom: 100, textAlign: 'center' },
     subtitle: { fontSize: 16, color: '#666', textAlign: 'center', marginBottom: 40 },
     button: {
         backgroundColor: '#007AFF',
@@ -18,6 +18,26 @@ export const styles = StyleSheet.create({
         marginBottom: 20,
         width: '80%',
         alignItems: 'center'
+    },
+    qrContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginVertical: 20,
+        padding: 20,
+        backgroundColor: '#ffffff',
+        borderRadius: 16,
+        elevation: 4,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+    },
+    qrHelperText: {
+        marginTop: 16,
+        fontSize: 16,
+        color: '#666',
+        textAlign: 'center',
+        maxWidth: '80%',
     },
     discoverButton: { backgroundColor: '#34C759' },
     buttonText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
@@ -81,5 +101,5 @@ export const styles = StyleSheet.create({
         textAlign: 'center',
         marginTop: 10
     },
-    
+
 });

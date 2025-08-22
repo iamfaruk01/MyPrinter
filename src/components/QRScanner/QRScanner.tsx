@@ -1,38 +1,65 @@
-// QRScreen.tsx
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StatusBar, Alert, StyleSheet, Dimensions } from 'react-native';
-import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
+// QRScreen.tsx (only relevant parts shown)
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, Alert, StyleSheet, Dimensions } from 'react-native';
+import { Camera, useCameraDevice, useCameraPermission, useCodeScanner } from 'react-native-vision-camera';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 interface QRScreenProps {
     onClose: () => void;
+    onScanned: (value: string) => void; // new prop
 }
 
-const QRScreen: React.FC<QRScreenProps> = ({ onClose }) => {
+const QRScreen: React.FC<QRScreenProps> = ({ onClose, onScanned }) => {
     const device = useCameraDevice('back');
     const { hasPermission, requestPermission } = useCameraPermission();
     const [isCameraActive, setIsCameraActive] = useState(false);
+
+    // one-shot guard to prevent multiple fires
+    const scannedRef = useRef(false);
+
+    const codeScanner = useCodeScanner({
+        codeTypes: ['qr', 'ean-13'],
+        onCodeScanned: (codes) => {
+            if (scannedRef.current) return; // already handled
+            if (codes.length === 0) return;
+
+            const value = codes[0]?.value;
+            if (!value) return;
+
+            // mark scanned to prevent repeats
+            scannedRef.current = true;
+
+            console.log('Scanned:', value);
+
+            // notify parent
+            try {
+                onScanned(value);
+            } catch (e) {
+                console.warn('onScanned handler error', e);
+            }
+
+            // optionally close the camera UI immediately
+            onClose();
+        },
+    });
 
     useEffect(() => {
         const initializeCamera = async () => {
             if (!hasPermission) {
                 const granted = await requestPermission();
-                if (granted) {
-                    setIsCameraActive(true);
-                } else {
-                    Alert.alert(
-                        'Camera Permission Required',
-                        'Please enable camera permission to scan QR codes.',
-                        [{ text: 'OK', onPress: onClose }]
-                    );
+                if (granted) setIsCameraActive(true);
+                else {
+                    Alert.alert('Camera Permission Required', 'Please enable camera permission to scan QR codes.', [{ text: 'OK', onPress: onClose }]);
                 }
-            } else {
-                setIsCameraActive(true);
-            }
+            } else setIsCameraActive(true);
         };
-
         initializeCamera();
+
+        // reset guard when component unmounts / mounts again
+        scannedRef.current = false;
+
+        return () => { setIsCameraActive(false); scannedRef.current = false; };
     }, [hasPermission, requestPermission, onClose]);
 
     // Cleanup camera when component unmounts
@@ -72,14 +99,15 @@ const QRScreen: React.FC<QRScreenProps> = ({ onClose }) => {
     return (
         <View style={qrStyles.container}>
             <Text style={qrStyles.instructionText}>Scan QR Code</Text>
-            
+
             <View style={qrStyles.cameraWrapper}>
                 <Camera
                     style={qrStyles.camera}
                     device={device}
                     isActive={isCameraActive}
+                    codeScanner={codeScanner}
                 />
-    
+
             </View>
 
             <TouchableOpacity
@@ -88,7 +116,7 @@ const QRScreen: React.FC<QRScreenProps> = ({ onClose }) => {
             >
                 <Text style={qrStyles.closeText}>✕</Text>
             </TouchableOpacity>
-            
+
             <Text style={qrStyles.helperText}>
                 Position the QR code within the frame to scan
             </Text>

@@ -34,34 +34,48 @@ const OwnerDashboard = () => {
     </>
   );
 
+  // This function now correctly handles both advertising (showing QR) and discovering
   const renderActionContent = () => (
     <>
       <Text style={styles.title}>{status}...</Text>
-      {qrData && (
-        <View>
+      
+      {/* Show QR code only when advertising */}
+      {status === 'Advertising...' && qrData && (
+        <View style={styles.qrContainer}>
           <QRCode value={qrData} size={200} />
+          <Text style={styles.qrHelperText}>Ask the other user to scan this code.</Text>
         </View>
       )}
-      {discoveredEndpoints.length === 0 ? (
-        <ActivityIndicator size="large" color="#007AFF" />
-      ) : (
-        <ScrollView style={{ width: '100%' }}>
-          {discoveredEndpoints.map(endpoint => (
-            <View key={endpoint.id} style={styles.device}>
-              <Text>{endpoint.name}</Text>
-              <Button title="Connect" onPress={() => handleConnect(endpoint.id)} />
-            </View>
-          ))}
 
-
-        </ScrollView>
+      {/* Show discovery list only when discovering */}
+      {status === 'Discovering...' && (
+        discoveredEndpoints.length === 0 ? (
+          <View style={styles.centered}>
+            <ActivityIndicator size="large" color="#007AFF" />
+            <Text style={styles.infoText}>Searching for nearby devices...</Text>
+          </View>
+        ) : (
+          <ScrollView style={{ width: '100%' }}>
+            {discoveredEndpoints.map(endpoint => (
+              <View key={endpoint.id} style={styles.device}>
+                <Text>{endpoint.name} ({endpoint.id})</Text>
+                <Button title="Connect" onPress={() => handleConnect(endpoint.id)} />
+              </View>
+            ))}
+          </ScrollView>
+        )
       )}
     </>
   );
 
+  // This function now correctly displays the connected device's name
   const renderConnectedContent = () => (
     <View style={{ width: '100%', alignItems: 'center' }}>
       <Text style={styles.title}>Connected!</Text>
+      {/* Display the name of the device you are connected to */}
+      <Text style={styles.subtitle}>
+        Connection established with {connectedEndpoint?.name || 'peer'}.
+      </Text>
       <TextInput
         style={styles.input}
         value={messageToSend}
@@ -69,9 +83,9 @@ const OwnerDashboard = () => {
         placeholder="Type a message"
       />
       <Button title="Send" onPress={handleSendMessage} disabled={!messageToSend.trim()} />
-      <ScrollView>
+      <ScrollView style={styles.messageScrollView}>
         {receivedMessages.map((msg, i) => (
-          <Text key={i}>{msg}</Text>
+          <Text key={i} style={styles.messageText}>{msg}</Text>
         ))}
       </ScrollView>
     </View>
@@ -80,11 +94,15 @@ const OwnerDashboard = () => {
   return (
     <View style={styles.container}>
       <Text style={styles.statusText}>Current Status: {status}</Text>
+      
+      {/* Main rendering logic based on connection and status */}
       {connectedEndpoint
         ? renderConnectedContent()
-        : status === 'Discovering...' || status === 'Advertising...'
+        : (status === 'Discovering...' || status === 'Advertising...')
           ? renderActionContent()
-          : renderIdleContent()}
+          : renderIdleContent()
+      }
+      
       {status !== 'Idle' && (
         <TouchableOpacity onPress={handleStopAndReset} style={[styles.button, styles.stopButton]}>
           <Text style={styles.buttonText}>Stop & Reset</Text>

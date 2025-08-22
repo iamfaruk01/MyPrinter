@@ -2,6 +2,7 @@ package com.myprinter
 
 import android.util.Log
 import com.facebook.react.bridge.Arguments
+import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
@@ -10,7 +11,6 @@ import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.google.android.gms.nearby.Nearby
 import com.google.android.gms.nearby.connection.*
 import java.nio.charset.StandardCharsets
-import com.facebook.react.bridge.Promise
 
 class NearbyModule(private val reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
 
@@ -18,7 +18,7 @@ class NearbyModule(private val reactContext: ReactApplicationContext) : ReactCon
         Nearby.getConnectionsClient(reactContext)
     }
     private val discoveredEndpoints = mutableMapOf<String, String>()
-
+    
     companion object {
         private const val SERVICE_ID = "com.myprinter.nearby"
         private const val TAG = "NearbyModule"
@@ -54,8 +54,10 @@ class NearbyModule(private val reactContext: ReactApplicationContext) : ReactCon
     }
 
     private val connectionLifecycleCallback = object : ConnectionLifecycleCallback() {
+        // NOTE: The incorrect 'onAdvertisingStarted' function has been removed.
+
         override fun onConnectionInitiated(endpointId: String, connectionInfo: ConnectionInfo) {
-            Log.d(TAG, "Connection Initiated: $endpointId")
+            Log.d(TAG, "Connection Initiated from ${connectionInfo.endpointName} ($endpointId)")
             val params = Arguments.createMap().apply {
                 putString("endpointId", endpointId)
                 putString("endpointName", connectionInfo.endpointName)
@@ -98,7 +100,7 @@ class NearbyModule(private val reactContext: ReactApplicationContext) : ReactCon
         }
 
         override fun onPayloadTransferUpdate(endpointId: String, update: PayloadTransferUpdate) {
-            // Can be used for file transfer progress
+            // Can be used for file transfer progress updates
         }
     }
 
@@ -106,17 +108,17 @@ class NearbyModule(private val reactContext: ReactApplicationContext) : ReactCon
     fun startAdvertising(deviceName: String, promise: Promise) {
         val advertisingOptions = AdvertisingOptions.Builder().setStrategy(Strategy.P2P_STAR).build()
         connectionsClient.startAdvertising(deviceName, SERVICE_ID, connectionLifecycleCallback, advertisingOptions)
-            .addOnSuccessListener { 
-                Log.d(TAG, "Advertising started") 
-                // Return advertiser info back to JS so it can generate QR
+            .addOnSuccessListener {
+                Log.d(TAG, "Advertising started successfully.")
+                // The QR code only needs the device name for the other device to find it.
+                // The unique endpointId will be handled when the connection is initiated.
                 val result = Arguments.createMap().apply {
                     putString("deviceName", deviceName)
-                    putString("serviceId", SERVICE_ID)
                 }
                 promise.resolve(result)
             }
-            .addOnFailureListener { e -> 
-                Log.e(TAG, "Advertising failed", e) 
+            .addOnFailureListener { e ->
+                Log.e(TAG, "Advertising failed", e)
                 promise.reject("ADVERTISING_FAILED", e)
             }
     }
@@ -130,11 +132,11 @@ class NearbyModule(private val reactContext: ReactApplicationContext) : ReactCon
     }
 
     @ReactMethod
-    fun connectToEndpoint(endpointId: String) {
-        val endpointName = discoveredEndpoints[endpointId] ?: ""
-        connectionsClient.requestConnection(endpointName, endpointId, connectionLifecycleCallback)
-            .addOnSuccessListener { Log.d(TAG, "Connection requested") }
-            .addOnFailureListener { e -> Log.e(TAG, "Connection request failed", e) }
+    fun connectToEndpoint(endpointId: String, localDeviceName: String) {
+        Log.d(TAG, "Requesting connection to $endpointId as '$localDeviceName'")
+        connectionsClient.requestConnection(localDeviceName, endpointId, connectionLifecycleCallback)
+            .addOnSuccessListener { Log.d(TAG, "Connection request to $endpointId sent successfully.") }
+            .addOnFailureListener { e -> Log.e(TAG, "Connection request to $endpointId failed.", e) }
     }
 
     @ReactMethod
@@ -159,11 +161,11 @@ class NearbyModule(private val reactContext: ReactApplicationContext) : ReactCon
 
     @ReactMethod
     fun addListener(eventName: String) {
-        // Required for RN built-in Event Emitter Calls.
+        // Required for React Native's Event Emitter.
     }
 
     @ReactMethod
     fun removeListeners(count: Int) {
-        // Required for RN built-in Event Emitter Calls.
+        // Required for React Native's Event Emitter.
     }
 }

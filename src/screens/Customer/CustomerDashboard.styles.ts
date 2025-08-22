@@ -1,110 +1,476 @@
-import { StyleSheet } from "react-native";
+import { StyleSheet, Dimensions } from "react-native";
 
-const COLOR = {
-  background: "#f5f5f5",
-  surface: "#ffffff",
-  textPrimary: "#222222",
-  textSecondary: "#666666",
-  danger: "#ff3b30",
-  accent: "#007aff",
+const { width, height } = Dimensions.get('window');
+
+const COLORS = {
+    // Google Pay inspired colors
+    primary: "#1a73e8", // Google Blue
+    background: "#f8f9fa", // Light gray background
+    surface: "#ffffff",
+    surfaceVariant: "#f1f3f4",
+    onSurface: "#202124",
+    onSurfaceVariant: "#5f6368",
+    outline: "#dadce0",
+    success: "#34a853",
+    error: "#ea4335",
+    warning: "#fbbc04",
+    // Scanner colors
+    scannerBg: "#000000",
+    scannerOverlay: "rgba(0, 0, 0, 0.7)",
+    scanFrame: "#1a73e8",
 };
 
 const SPACING = {
-  page: 20,
-  small: 8,
-  medium: 16,
-  large: 24,
+    xs: 4,
+    sm: 8,
+    md: 16,
+    lg: 24,
+    xl: 32,
+    xxl: 48,
+};
+
+const TYPOGRAPHY = {
+    h1: 24,
+    h2: 20,
+    h3: 18,
+    body: 16,
+    caption: 14,
+    small: 12,
 };
 
 const RADIUS = {
-  button: 12,
-  card: 8,
+    sm: 8,
+    md: 12,
+    lg: 16,
+    xl: 24,
+    full: 999,
 };
 
 export const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: COLOR.background,
-  },
-  container: {
-    flex: 1,
-    padding: SPACING.page,
-  },
+    safeArea: {
+        flex: 1,
+        backgroundColor: COLORS.background,
+    },
 
-  /* Camera container - positioned at top center */
-  cameraContainer: {
-    position: 'absolute',
-    top: SPACING.page,
-    left: SPACING.page,
-    right: SPACING.page,
-    // height: '40%', // Adjust height as needed
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    zIndex: 50,
-  },
+    // Main Dashboard Styles
+    container: {
+        flex: 1,
+        justifyContent: 'flex-end',
+        backgroundColor: COLORS.background,
+    },
+    title: { fontSize: 24, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
 
-  /* Center content - takes up middle space */
-  centerContent: {
-    flex: 1,
-    width: "100%",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: SPACING.large,
-    backgroundColor: COLOR.surface,
-    borderRadius: RADIUS.card,
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 2,
-    marginBottom: SPACING.large,
-  },
+    message: {
+        padding: 8,
+        backgroundColor: '#e5e5ea',
+        borderRadius: 10,
+        marginTop: 5
+    },
+    header: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        paddingHorizontal: SPACING.lg,
+        paddingVertical: SPACING.md,
+        backgroundColor: COLORS.surface,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.outline,
+    },
 
-  title: {
-    fontSize: 18,
-    color: COLOR.textPrimary,
-    fontWeight: "600",
-    marginBottom: SPACING.medium,
-    textAlign: "center",
-  },
+    headerTitle: {
+        fontSize: TYPOGRAPHY.h2,
+        fontWeight: "600",
+        color: COLORS.onSurface,
+    },
 
-  helperText: {
-    marginTop: SPACING.small,
-    fontSize: 14,
-    color: COLOR.textSecondary,
-    textAlign: "center",
-  },
+    profileButton: {
+        padding: SPACING.xs,
+    },
 
-  /* Primary action */
-  primaryButton: {
-    width: "100%",
-    paddingVertical: SPACING.medium,
-    borderRadius: RADIUS.button,
-    backgroundColor: COLOR.accent,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  primaryButtonText: {
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
+    profileIcon: {
+        width: 36,
+        height: 36,
+        borderRadius: RADIUS.full,
+        backgroundColor: COLORS.primary,
+        alignItems: "center",
+        justifyContent: "center",
+    },
 
-  /* Footer - always at bottom */
-  footer: {
-    width: "100%",
-    alignItems: "center",
-    justifyContent: "flex-end",
-  },
-  logoutButton: {
-    width: "60%",
-    paddingVertical: SPACING.medium,
-    borderRadius: 999, // pill
-    backgroundColor: COLOR.danger,
-    alignItems: "center",
-  },
-  logoutButtonText: {
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "700",
-  },
+    profileInitial: {
+        fontSize: TYPOGRAPHY.body,
+        fontWeight: "600",
+        color: COLORS.surface,
+    },
+
+    mainContent: {
+        flex: 1,
+        padding: SPACING.lg,
+    },
+
+    // QR Scan Card
+    scanCard: {
+        backgroundColor: COLORS.surface,
+        borderRadius: RADIUS.lg,
+        padding: SPACING.xl,
+        alignItems: "center",
+        marginBottom: SPACING.xl,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 4,
+    },
+
+    scanIcon: {
+        width: 80,
+        height: 80,
+        borderRadius: RADIUS.lg,
+        backgroundColor: COLORS.primary,
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: SPACING.lg,
+    },
+
+    qrIconFrame: {
+        width: 40,
+        height: 40,
+        flexDirection: "row",
+        flexWrap: "wrap",
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    // Add these new styles to your existing StyleSheet.create({...}) call
+
+    statusTextLarge: {
+        fontSize: 22,
+        fontWeight: '600',
+        color: '#333',
+        marginTop: 20,
+        marginBottom: 10,
+    },
+    subtitle: {
+        fontSize: 16,
+        color: '#666',
+        textAlign: 'center',
+        paddingHorizontal: 20,
+    },
+    chatContainer: {
+        flex: 1,
+        width: '100%',
+        padding: 10,
+    },
+    messageScrollView: {
+        flex: 1,
+        width: '100%',
+    },
+    inputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 8,
+        borderTopWidth: 1,
+        borderTopColor: '#e0e0e0',
+        backgroundColor: '#fff',
+    },
+    input: {
+        flex: 1,
+        height: 40,
+        borderWidth: 1,
+        borderColor: '#ccc',
+        borderRadius: 20,
+        paddingHorizontal: 15,
+        marginRight: 10,
+        backgroundColor: '#fff',
+    },
+    messageText: {
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        backgroundColor: '#e5e5ea',
+        borderRadius: 15,
+        marginTop: 5,
+        maxWidth: '80%',
+        alignSelf: 'flex-start', // Differentiates peer messages
+    },
+
+    qrDot: {
+        width: 8,
+        height: 8,
+        backgroundColor: COLORS.surface,
+        margin: 2,
+        borderRadius: 2,
+    },
+
+    scanCardTitle: {
+        fontSize: TYPOGRAPHY.h2,
+        fontWeight: "600",
+        color: COLORS.onSurface,
+        marginBottom: SPACING.sm,
+        textAlign: "center",
+    },
+
+    scanCardSubtitle: {
+        fontSize: TYPOGRAPHY.caption,
+        color: COLORS.onSurfaceVariant,
+        textAlign: "center",
+        lineHeight: 20,
+    },
+
+    // Quick Actions
+    quickActions: {
+        flex: 1,
+    },
+
+    sectionTitle: {
+        fontSize: TYPOGRAPHY.body,
+        fontWeight: "600",
+        color: COLORS.onSurface,
+        marginBottom: SPACING.md,
+    },
+
+    actionItem: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: COLORS.surface,
+        borderRadius: RADIUS.md,
+        padding: SPACING.md,
+        marginBottom: SPACING.md,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+
+    actionIcon: {
+        width: 48,
+        height: 48,
+        borderRadius: RADIUS.md,
+        backgroundColor: COLORS.surfaceVariant,
+        alignItems: "center",
+        justifyContent: "center",
+        marginRight: SPACING.md,
+    },
+
+    actionIconText: {
+        fontSize: 20,
+    },
+
+    actionContent: {
+        flex: 1,
+    },
+
+    actionTitle: {
+        fontSize: TYPOGRAPHY.body,
+        fontWeight: "500",
+        color: COLORS.onSurface,
+        marginBottom: SPACING.xs,
+    },
+
+    actionSubtitle: {
+        fontSize: TYPOGRAPHY.small,
+        color: COLORS.onSurfaceVariant,
+    },
+
+    // Scanner Styles
+    scannerContainer: {
+        flex: 1,
+        backgroundColor: COLORS.scannerBg,
+    },
+
+    scannerHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        paddingHorizontal: SPACING.lg,
+        paddingVertical: SPACING.md,
+        backgroundColor: "rgba(0, 0, 0, 0.9)",
+    },
+
+    backButton: {
+        width: 40,
+        height: 40,
+        borderRadius: RADIUS.full,
+        backgroundColor: "rgba(255, 255, 255, 0.2)",
+        alignItems: "center",
+        justifyContent: "center",
+    },
+
+    backButtonText: {
+        fontSize: 24,
+        color: COLORS.surface,
+        fontWeight: "300",
+    },
+
+    scannerTitle: {
+        fontSize: TYPOGRAPHY.h3,
+        fontWeight: "500",
+        color: COLORS.surface,
+    },
+
+    headerSpacer: {
+        width: 40,
+    },
+
+    cameraWrapper: {
+        flex: 1,
+        position: "relative",
+    },
+
+    scannerOverlay: {
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "rgba(0, 0, 0, 0.3)",
+    },
+
+    scanFrame: {
+        width: 250,
+        height: 250,
+        position: "relative",
+    },
+
+    corner: {
+        position: "absolute",
+        width: 30,
+        height: 30,
+        borderColor: COLORS.scanFrame,
+        borderWidth: 4,
+    },
+
+    topLeft: {
+        top: 0,
+        left: 0,
+        borderBottomWidth: 0,
+        borderRightWidth: 0,
+    },
+
+    topRight: {
+        top: 0,
+        right: 0,
+        borderBottomWidth: 0,
+        borderLeftWidth: 0,
+    },
+
+    bottomLeft: {
+        bottom: 0,
+        left: 0,
+        borderTopWidth: 0,
+        borderRightWidth: 0,
+    },
+
+    bottomRight: {
+        bottom: 0,
+        right: 0,
+        borderTopWidth: 0,
+        borderLeftWidth: 0,
+    },
+
+    scannerBottom: {
+        backgroundColor: "rgba(0, 0, 0, 0.9)",
+        paddingHorizontal: SPACING.lg,
+        paddingVertical: SPACING.xl,
+        alignItems: "center",
+    },
+
+    scannerInstruction: {
+        fontSize: TYPOGRAPHY.body,
+        color: COLORS.surface,
+        textAlign: "center",
+        marginBottom: SPACING.sm,
+        fontWeight: "500",
+    },
+
+    scannerSubtext: {
+        fontSize: TYPOGRAPHY.caption,
+        color: "rgba(255, 255, 255, 0.7)",
+        textAlign: "center",
+    },
+
+    // Connected State Styles
+    connectedHeader: {
+        backgroundColor: COLORS.surface,
+        paddingHorizontal: SPACING.lg,
+        paddingVertical: SPACING.lg,
+        alignItems: "center",
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.outline,
+    },
+
+    connectedTitle: {
+        fontSize: TYPOGRAPHY.h2,
+        fontWeight: "600",
+        color: COLORS.onSurface,
+        marginBottom: SPACING.sm,
+    },
+
+    connectionStatus: {
+        flexDirection: "row",
+        alignItems: "center",
+    },
+
+    statusDot: {
+        width: 8,
+        height: 8,
+        borderRadius: RADIUS.full,
+        backgroundColor: COLORS.success,
+        marginRight: SPACING.sm,
+    },
+
+    statusText: {
+        fontSize: TYPOGRAPHY.caption,
+        color: COLORS.success,
+        fontWeight: "500",
+    },
+
+    connectionActions: {
+        backgroundColor: COLORS.surface,
+        paddingHorizontal: SPACING.lg,
+        paddingBottom: SPACING.lg,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.outline,
+    },
+
+    primaryActionButton: {
+        backgroundColor: COLORS.primary,
+        borderRadius: RADIUS.md,
+        paddingVertical: SPACING.md,
+        alignItems: "center",
+        marginBottom: SPACING.md,
+    },
+
+    primaryActionText: {
+        fontSize: TYPOGRAPHY.body,
+        fontWeight: "600",
+        color: COLORS.surface,
+    },
+
+    secondaryActionButton: {
+        backgroundColor: COLORS.surfaceVariant,
+        borderRadius: RADIUS.md,
+        paddingVertical: SPACING.md,
+        alignItems: "center",
+    },
+
+    secondaryActionText: {
+        fontSize: TYPOGRAPHY.body,
+        fontWeight: "500",
+        color: COLORS.onSurfaceVariant,
+    },
+
+    messageArea: {
+        flex: 1,
+        backgroundColor: COLORS.background,
+        paddingHorizontal: SPACING.lg,
+    },
+
+    messageAreaTitle: {
+        fontSize: TYPOGRAPHY.body,
+        fontWeight: "600",
+        color: COLORS.onSurface,
+        marginTop: SPACING.lg,
+        marginBottom: SPACING.md,
+    },
 });
