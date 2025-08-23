@@ -1,73 +1,45 @@
 import React from 'react';
-import HomeScreen from '../screens/Home/HomeScreen';
-import LoginScreen from '../screens/Login/LoginScreen';
-import OtpScreen from '../screens/Login/OtpScreen';
-import CustomerDashboard from '../screens/Customer/Customer.Dashboard';
-import OwnerDashboard from '../screens/Owner/OwnerDashboard';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
-// Define the navigation stack parameter list
-export type RootStackParamList = {
+// Import your screens and the MainTabNavigator
+import LoginScreen from '../screens/Login/LoginScreen';
+import OtpScreen from '../screens/Login/OtpScreen';
+import HomeScreen from '../screens/Home/HomeScreen'; // This is your onboarding screen
+import { MainTabNavigator } from './MainTabNavigator'; // Assuming your tab navigator is in this file
+
+// Define the param lists for the stacks
+export type AuthStackParamList = {
   Login: undefined;
   OtpScreen: { phone: string };
   Home: { phoneNumber: string };
-  CustomerDashboard: undefined;
-  OwnerDashboard: undefined;
 };
 
-const Stack = createNativeStackNavigator<RootStackParamList>();
+export type RootStackParamList = {
+  Auth: undefined; // Represents the entire auth flow
+  Main: {userType: string}; // Represents the entire main app with tabs
+};
 
-const AppNavigator= () => {
+const AuthStack = createNativeStackNavigator<AuthStackParamList>();
+const RootStack = createNativeStackNavigator<RootStackParamList>();
+
+const AuthNavigator = () => (
+  <AuthStack.Navigator screenOptions={{ headerShown: false }}>
+    <AuthStack.Screen name="Login" component={LoginScreen} />
+    <AuthStack.Screen name="OtpScreen" component={OtpScreen} />
+    <AuthStack.Screen name="Home" component={HomeScreen} />
+  </AuthStack.Navigator>
+);
+
+// The main AppNavigator now simply defines the two high-level flows of your app.
+const AppNavigator = () => {
   return (
-    <Stack.Navigator
-      initialRouteName="Login"
-      screenOptions={{
-        headerStyle: {
-          backgroundColor: '#2196F3',
-        },
-        headerTintColor: '#fff',
-        headerTitleStyle: {
-          fontWeight: 'bold',
-          fontSize: 18,
-        },
-        contentStyle: {
-          backgroundColor: '#f5f5f5',
-        },
-      }}
+    <RootStack.Navigator
+      initialRouteName="Auth" // Always start with the Auth flow
+      screenOptions={{ headerShown: false }}
     >
-      <Stack.Screen
-        name="Login"
-        component={LoginScreen}
-        options={{ title: 'Login' }}
-      />
-      <Stack.Screen
-        name="Home"
-        component={HomeScreen}
-        options={{
-          title: 'My Profile',
-          headerStyle: {
-            backgroundColor: '#1976D2',
-          },
-        }}
-      />
-      <Stack.Screen
-        name="OtpScreen"
-        component={OtpScreen}
-        options={{ title: 'Verify OTP' }}
-      />
-
-      <Stack.Screen
-        name="CustomerDashboard"
-        component={CustomerDashboard}
-        options={{ title: 'My Printer' }}
-      />
-
-      <Stack.Screen
-        name='OwnerDashboard'
-        component={OwnerDashboard}
-        options={{ title: 'My Printer - Owner' }}
-      />
-    </Stack.Navigator>
+      <RootStack.Screen name="Auth" component={AuthNavigator} />
+      <RootStack.Screen name="Main" component={MainTabNavigator} />
+    </RootStack.Navigator>
   );
 };
 

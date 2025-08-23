@@ -12,7 +12,9 @@
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-documents/picker": "^10.1.5",
+    "@react-native-vector-icons/fontisto": "^12.3.0",
     "@react-native/new-app-screen": "0.81.0",
+    "@react-navigation/bottom-tabs": "^7.4.6",
     "@react-navigation/native": "^7.1.17",
     "@react-navigation/native-stack": "^7.3.25",
     "@react-navigation/stack": "^7.4.7",
@@ -23,6 +25,7 @@
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
+    "lucide-react-native": "^0.541.0",
     "mongoose": "^8.17.1",
     "multer": "^2.0.2",
     "otp-generator": "^4.0.1",

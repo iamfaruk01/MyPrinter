@@ -1,22 +1,20 @@
-// QRScreen.tsx (only relevant parts shown)
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, Alert, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, StyleSheet, Dimensions, StatusBar } from 'react-native';
 import { Camera, useCameraDevice, useCameraPermission, useCodeScanner } from 'react-native-vision-camera';
-
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+import { styles } from "./QRScanner.styles"
 
 interface QRScreenProps {
-    onClose: () => void;
     onScanned: (value: string) => void; // new prop
 }
 
-const QRScreen: React.FC<QRScreenProps> = ({ onClose, onScanned }) => {
+const QRScreen: React.FC<QRScreenProps> = ({ onScanned }) => {
     const device = useCameraDevice('back');
     const { hasPermission, requestPermission } = useCameraPermission();
     const [isCameraActive, setIsCameraActive] = useState(false);
 
     // one-shot guard to prevent multiple fires
     const scannedRef = useRef(false);
+    const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const codeScanner = useCodeScanner({
         codeTypes: ['qr', 'ean-13'],
@@ -38,9 +36,6 @@ const QRScreen: React.FC<QRScreenProps> = ({ onClose, onScanned }) => {
             } catch (e) {
                 console.warn('onScanned handler error', e);
             }
-
-            // optionally close the camera UI immediately
-            onClose();
         },
     });
 
@@ -60,7 +55,7 @@ const QRScreen: React.FC<QRScreenProps> = ({ onClose, onScanned }) => {
         scannedRef.current = false;
 
         return () => { setIsCameraActive(false); scannedRef.current = false; };
-    }, [hasPermission, requestPermission, onClose]);
+    }, [hasPermission, requestPermission]);
 
     // Cleanup camera when component unmounts
     useEffect(() => {
@@ -69,17 +64,38 @@ const QRScreen: React.FC<QRScreenProps> = ({ onClose, onScanned }) => {
         };
     }, []);
 
+    useEffect(() => {
+        if (isCameraActive) {
+            idleTimerRef.current = setTimeout(() => {
+                console.log('Camera has been idle for 7 seconds. Deactivating.');
+                setIsCameraActive(false);
+            }, 10000)
+        }
+        return () => {
+            if (idleTimerRef.current) {
+                clearTimeout(idleTimerRef.current);
+            }
+        };
+    }, [isCameraActive])
+
     const handleClose = () => {
         setIsCameraActive(false);
-        onClose();
+    };
+
+    const handleScreenTap = () => {
+        if (!isCameraActive) {
+            console.log('Reactivating camera on tap.');
+            scannedRef.current = false; // Reset the guard to allow a new scan
+            setIsCameraActive(true);
+        }
     };
 
     if (!hasPermission) {
         return (
-            <View style={qrStyles.errorContainer}>
-                <Text style={qrStyles.messageText}>Camera permission is required to scan QR codes</Text>
-                <TouchableOpacity style={qrStyles.closeButton} onPress={onClose}>
-                    <Text style={qrStyles.closeButtonText}>Close</Text>
+            <View style={styles.errorContainer}>
+                <Text style={styles.messageText}>Camera permission is required to scan QR codes</Text>
+                <TouchableOpacity style={styles.closeButton}>
+                    <Text style={styles.closeButtonText}>Close</Text>
                 </TouchableOpacity>
             </View>
         );
@@ -87,140 +103,48 @@ const QRScreen: React.FC<QRScreenProps> = ({ onClose, onScanned }) => {
 
     if (!device) {
         return (
-            <View style={qrStyles.errorContainer}>
-                <Text style={qrStyles.messageText}>No camera device found</Text>
-                <TouchableOpacity style={qrStyles.closeButton} onPress={onClose}>
-                    <Text style={qrStyles.closeButtonText}>Close</Text>
+            <View style={styles.errorContainer}>
+                <Text style={styles.messageText}>No camera device found</Text>
+                <TouchableOpacity style={styles.closeButton}>
+                    <Text style={styles.closeButtonText}>Close</Text>
                 </TouchableOpacity>
             </View>
         );
     }
 
     return (
-        <View style={qrStyles.container}>
-            <Text style={qrStyles.instructionText}>Scan QR Code</Text>
+        <>
+            <StatusBar barStyle={'dark-content'} backgroundColor={'white'} />
+            <TouchableOpacity style={styles.cameraWrapper} onPress={handleScreenTap} activeOpacity={1}>
+                {isCameraActive ? (
+                    <>
+                        <Camera
+                            style={StyleSheet.absoluteFill}
+                            device={device}
+                            isActive={isCameraActive}
+                            codeScanner={codeScanner}
+                        />
+                        <View style={styles.overlay}>
+                            <View style={styles.overlayTopRow}/>
+                            <View style={styles.overlayCenterRow}>
+                                <View style={styles.overlaySide}/>
+                                <View style={styles.scanBox}/>
+                                <View style={styles.overlaySide}/>
+                            </View>
+                            <View style={styles.overlayBottomRow}/>
+                        </View>
+                    </>
+                ) : (
+                    <View style={styles.inactiveContainer}>
+                        <Text style={styles.inactiveText}>Tap to Scan</Text>
+                    </View>
+                )}
 
-            <View style={qrStyles.cameraWrapper}>
-                <Camera
-                    style={qrStyles.camera}
-                    device={device}
-                    isActive={isCameraActive}
-                    codeScanner={codeScanner}
-                />
-
-            </View>
-
-            <TouchableOpacity
-                style={qrStyles.closeButtonOverlay}
-                onPress={handleClose}
-            >
-                <Text style={qrStyles.closeText}>✕</Text>
             </TouchableOpacity>
-
-            <Text style={qrStyles.helperText}>
-                Position the QR code within the frame to scan
-            </Text>
-        </View>
+        </>
     );
 };
 
-// Styles for QRScreen
-const qrStyles = StyleSheet.create({
-    container: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: '100%',
-        paddingVertical: 20,
-        backgroundColor: 'rgba(245, 245, 245, 0.95)',
-        borderRadius: 16,
-    },
-    errorContainer: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 20,
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        shadowColor: '#000',
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 4,
-    },
-    instructionText: {
-        fontSize: Math.max(screenWidth * 0.045, 16), // Responsive font size, min 16px
-        fontWeight: '600',
-        color: '#333',
-        marginBottom: 16,
-        textAlign: 'center',
-    },
-    cameraWrapper: {
-        position: 'relative',
-        marginBottom: 16,
-    },
-    camera: {
-        width: Math.min(screenWidth * 0.7, 300), // 70% of screen width, max 300px
-        height: Math.min(screenWidth * 0.7, 300), // Keep it square
-        borderRadius: 16,
-        overflow: 'hidden',
-    },
-    scannerFrame: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        borderWidth: 2,
-        borderColor: '#007aff',
-        borderRadius: 16,
-        backgroundColor: 'transparent',
-        // Add scanning animation effect
-        borderStyle: 'dashed',
-    },
-    closeButtonOverlay: {
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        width: Math.max(screenWidth * 0.12, 44), // 12% of screen width, min 44px
-        height: Math.max(screenWidth * 0.12, 44), // Keep it square
-        borderRadius: Math.max(screenWidth * 0.06, 22), // Half of width/height
-        justifyContent: 'center',
-        alignItems: 'center',
-        elevation: 4,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
-        marginBottom: 12,
-    },
-    closeText: {
-        fontSize: 20,
-        color: '#333',
-        fontWeight: 'bold',
-    },
-    helperText: {
-        fontSize: 14,
-        color: '#666',
-        textAlign: 'center',
-        maxWidth: Math.min(screenWidth * 0.8, 320), // 80% of screen width, max 320px
-        lineHeight: 20,
-        paddingHorizontal: 16,
-    },
-    messageText: {
-        fontSize: 16,
-        color: '#333',
-        textAlign: 'center',
-        marginBottom: 20,
-        lineHeight: 22,
-    },
-    closeButton: {
-        backgroundColor: '#007aff',
-        paddingHorizontal: 24,
-        paddingVertical: 12,
-        borderRadius: 8,
-    },
-    closeButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-});
+
 
 export default QRScreen;

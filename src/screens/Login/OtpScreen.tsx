@@ -3,12 +3,12 @@ import { View, Text, TouchableOpacity, TextInput } from "react-native";
 import { styles } from "./LoginScreen.styles";
 import { styles as stylesHome } from "../Home/Home.styles";
 import { StackScreenProps } from "@react-navigation/stack";
-import { RootStackParamList } from "../../navigation/AppNavigator";
+import { AuthStackParamList } from "../../navigation/AppNavigator";
 import useLoginHandler from "./hooks/useLoginHandler";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-type OtpScreenProps = StackScreenProps<RootStackParamList, "OtpScreen">;
+type OtpScreenProps = StackScreenProps<AuthStackParamList, "OtpScreen">;
 
 const OtpScreen: React.FC<OtpScreenProps> = ({ route }) => {
     const {

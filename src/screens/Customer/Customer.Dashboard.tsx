@@ -22,8 +22,6 @@ const CustomerDashboard: React.FC = () => {
         fileTransfers
     } = useOwnerDashboard();
 
-    const [showQRScreen, setShowQRScreen] = useState(false);
-
     const onScanned = async (value: string) => {
         let targetDeviceName: string | null = null;
         try {
@@ -40,8 +38,6 @@ const CustomerDashboard: React.FC = () => {
             Alert.alert('Scan Error', 'Scanned QR does not contain a valid device name.');
             return;
         }
-
-        setShowQRScreen(false);
         // Call handleConnect with the TARGET's name
         await handleConnect(targetDeviceName);
     };
@@ -66,47 +62,15 @@ const CustomerDashboard: React.FC = () => {
         </View>
     );
 
-    const renderIdleContent = () => (
-        <View style={styles.container}>
-            <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
-            <View style={styles.header}>
-                <Text style={styles.headerTitle}>Share Documents</Text>
-                <TouchableOpacity style={styles.profileButton} onPress={handleLogout} activeOpacity={0.7}>
-                    <View><Text>Logout</Text></View>
-                </TouchableOpacity>
-            </View>
-            <View style={styles.mainContent}>
-                <TouchableOpacity style={styles.scanCard} onPress={() => setShowQRScreen(true)} activeOpacity={0.95}>
-                    <View style={styles.scanIcon}><View style={styles.qrIconFrame} /></View>
-                    <Text style={styles.scanCardTitle}>Scan QR code</Text>
-                    <Text style={styles.scanCardSubtitle}>Scan to connect and share documents securely</Text>
-                </TouchableOpacity>
-            </View>
-        </View>
-    );
 
     const renderQRScanner = () => (
-        <View style={styles.scannerContainer}>
-            <StatusBar barStyle="light-content" backgroundColor="#000" />
-            <View style={styles.scannerHeader}>
-                <TouchableOpacity style={styles.backButton} onPress={() => setShowQRScreen(false)} activeOpacity={0.7}>
-                    <Text style={styles.backButtonText}>×</Text>
-                </TouchableOpacity>
-                <Text style={styles.scannerTitle}>Scan QR code</Text>
-                <View style={styles.headerSpacer} />
-            </View>
-            <View style={styles.cameraWrapper}>
-                <QRScreen onClose={() => setShowQRScreen(false)} onScanned={onScanned} />
-                <View style={styles.scannerOverlay}><View style={styles.scanFrame} /></View>
-            </View>
-            <View style={styles.scannerBottom}>
-                <Text style={styles.scannerInstruction}>Point your camera at a QR code</Text>
-            </View>
-        </View>
+        <QRScreen onScanned={onScanned} />
     );
 
     const renderConnectingContent = () => (
         <View style={styles.container}>
+            <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
+
             <ActivityIndicator size="large" color="#007AFF" />
             <Text style={styles.statusTextLarge}>Connecting...</Text>
             <Text style={styles.subtitle}>Please wait while we establish a secure connection.</Text>
@@ -129,37 +93,37 @@ const CustomerDashboard: React.FC = () => {
                         <Text key={i} style={styles.messageText}>{msg}</Text>
                     ))}
                 </ScrollView>
-                
+
                 {/* File Transfer Progress Section - Improved Styling */}
                 {fileTransfers.length > 0 && (
                     <View style={styles.transferSection}>
                         <Text style={styles.transferSectionTitle}>File Transfers</Text>
-                        <ScrollView 
-                            style={styles.transferScrollView} 
+                        <ScrollView
+                            style={styles.transferScrollView}
                             showsVerticalScrollIndicator={false}
                             nestedScrollEnabled={true}
                         >
                             {fileTransfers.map(transfer => (
-                                <FileTransferProgress 
-                                    key={transfer.payloadId} 
-                                    transfer={transfer} 
+                                <FileTransferProgress
+                                    key={transfer.payloadId}
+                                    transfer={transfer}
                                 />
                             ))}
                         </ScrollView>
                     </View>
                 )}
-                
+
                 {/* Send File Button */}
                 <View style={styles.actionButtonContainer}>
-                    <TouchableOpacity 
-                        style={styles.sendFileButton} 
+                    <TouchableOpacity
+                        style={styles.sendFileButton}
                         onPress={handleSendFile}
                         activeOpacity={0.8}
                     >
                         <Text style={styles.sendFileButtonText}>📎 Send File</Text>
                     </TouchableOpacity>
                 </View>
-                
+
                 {/* Message Input */}
                 <View style={styles.inputContainer}>
                     <TextInput
@@ -171,9 +135,9 @@ const CustomerDashboard: React.FC = () => {
                         returnKeyType="send"
                         onSubmitEditing={handleSendMessage}
                     />
-                    <TouchableOpacity 
-                        style={[styles.sendButton, { opacity: messageToSend.trim() ? 1 : 0.5 }]} 
-                        onPress={handleSendMessage} 
+                    <TouchableOpacity
+                        style={[styles.sendButton, { opacity: messageToSend.trim() ? 1 : 0.5 }]}
+                        onPress={handleSendMessage}
                         disabled={!messageToSend.trim()}
                         activeOpacity={0.8}
                     >
@@ -191,9 +155,9 @@ const CustomerDashboard: React.FC = () => {
 
     // --- MAIN RENDER LOGIC ---
 
-    if (showQRScreen) {
-        return <SafeAreaView style={styles.safeArea}>{renderQRScanner()}</SafeAreaView>;
-    }
+    // if (showQRScreen) {
+    //     return <SafeAreaView style={styles.safeArea}>{renderQRScanner()}</SafeAreaView>;
+    // }
 
     if (connectedEndpoint) {
         return <SafeAreaView style={styles.safeArea}>{renderConnectedContent()}</SafeAreaView>;
@@ -208,7 +172,8 @@ const CustomerDashboard: React.FC = () => {
 
     return (
         <SafeAreaView style={styles.safeArea}>
-            {renderIdleContent()}
+            <StatusBar barStyle={'light-content'} backgroundColor={'white'} />
+            {renderQRScanner()}
         </SafeAreaView>
     );
 };

@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Button, TextInput, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, Button, TextInput, ActivityIndicator, ScrollView, StatusBar } from 'react-native';
 import { useHomeScreen } from '../Home/hooks/useHomeScreen';
 import { useOwnerDashboard } from './hooks/useOwnerDashboard';
 import { styles } from './OwnerDashboard.styles';
 import QRCode from 'react-native-qrcode-svg';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const OwnerDashboard = () => {
   const { handleLogout } = useHomeScreen();
@@ -107,7 +108,8 @@ const OwnerDashboard = () => {
   );
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle={'dark-content'} backgroundColor={'white'} />
       <Text style={styles.statusText}>Current Status: {status}</Text>
       
       {connectedEndpoint
@@ -125,7 +127,7 @@ const OwnerDashboard = () => {
       <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
         <Text style={styles.logoutButtonText}>Logout</Text>
       </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 };
 

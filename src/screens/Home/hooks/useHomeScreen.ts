@@ -2,14 +2,19 @@ import { useContext, useEffect, useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import config from '../../../../config';
 import { AuthContext } from '../../../context/AuthContext';
-import { StackScreenProps } from '@react-navigation/stack';
-import { RootStackParamList } from '../../../navigation/AppNavigator';
+import { StackNavigationProp, StackScreenProps } from '@react-navigation/stack';
+import { AuthStackParamList, RootStackParamList } from '../../../navigation/AppNavigator';
+import { CompositeNavigationProp } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type UserType = '' | 'owner' | 'customer';
+type HomeScreenNavigationProp = CompositeNavigationProp<
+  StackNavigationProp<AuthStackParamList, 'Home'>,
+  StackNavigationProp<RootStackParamList>
+>;
 
 export const useHomeScreen = () => {
-  const navigation = useNavigation<StackScreenProps<RootStackParamList>['navigation']>();
+  const navigation = useNavigation<HomeScreenNavigationProp>();
   const [userType, setUserType] = useState<UserType>('');
   const [printerModel, setPrinterModel] = useState('');
   const [upiId, setUpiId] = useState('');
@@ -47,8 +52,15 @@ export const useHomeScreen = () => {
       const data = await response.json();
       console.log("[useHomeScreen] response: ", data);
       if (response.ok && data?.body?.success) {
+        AsyncStorage.setItem("userType", userType)
         console.log('Owner Profile Saved. Navigating to dashboard...');
-        navigation.reset({ index: 0, routes: [{ name: 'OwnerDashboard' }] });
+        navigation.getParent()?.reset({
+          index: 0,
+          routes: [{
+            name: 'Main',
+            params: {userType}
+          }]
+        })
       } else {
         console.error('Error saving owner profile:', data.message);
       }
@@ -69,12 +81,12 @@ export const useHomeScreen = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: phone, userType })
       })
-
       const data = await response.json();
       console.log("[useHomeScreen] response: ", data);
       if (response.ok && data?.body?.success) {
+        AsyncStorage.setItem("userType", userType)
         console.log('Customer Profile Saved. Navigating to dashboard...');
-        navigation.reset({ index: 0, routes: [{ name: 'CustomerDashboard' }] });
+        navigation.getParent()?.navigate('Main')
       } else {
         console.error('Error saving profile:', data.message);
       }
@@ -103,12 +115,13 @@ export const useHomeScreen = () => {
       if (response.ok) {
         if (data?.success) {
           const userType = data?.data?.userType;
-
-          if (userType === "owner") {
-            navigation.reset({ index: 0, routes: [{ name: "OwnerDashboard" }] });
-          } else if (userType === "customer") {
-            navigation.reset({ index: 0, routes: [{ name: "CustomerDashboard" }] });
-          }
+          navigation.getParent()?.reset({
+            index: 0,
+            routes: [{
+              name: 'Main',
+              params: { userType }
+            }],
+          });
         }
       } else {
         console.error("Failed to check profile:", data?.message);
@@ -121,10 +134,12 @@ export const useHomeScreen = () => {
   const handleLogout = async () => {
     try {
       await logout();
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Login' }]
-      })
+      navigation.getParent()?.reset({
+          index: 0,
+          routes: [{ 
+            name: 'Auth'
+          }],
+        });
       // Reset all local state
       setUserType('');
       setPrinterModel('');

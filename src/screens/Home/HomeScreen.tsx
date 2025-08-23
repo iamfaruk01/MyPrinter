@@ -5,20 +5,23 @@ import { useHomeScreen } from './hooks/useHomeScreen';
 import CombinedProfileSetup from '../../components/HomeScreen/CombinedProfileSetup';
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
-import { RootStackParamList } from "../../navigation/AppNavigator";
+import { AuthStackParamList, RootStackParamList } from "../../navigation/AppNavigator";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { CompositeNavigationProp } from '@react-navigation/native';
 
-type LoginScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
+// Update the navigation type to handle nested navigation
+type HomeScreenNavigationProp = CompositeNavigationProp<
+  StackNavigationProp<AuthStackParamList, 'Home'>,
+  StackNavigationProp<RootStackParamList>
+>;
 
-// interface HomeScreenProps {
-//   route: { params: { phoneNumber: string } };
-// }
-
-const HomeScreen: React.FC = ({ }) => {
-  const navigation = useNavigation<LoginScreenNavigationProp>();
+const HomeScreen: React.FC = () => {
+  const navigation = useNavigation<HomeScreenNavigationProp>();
 
   const {
-    phone, setPhone,
+    phone, 
+    setPhone,
     userType,
     setUserType,
     printerModel,
@@ -38,39 +41,57 @@ const HomeScreen: React.FC = ({ }) => {
       };
       checkProfile();
     }
-  }, [phone]);  // run only when phone is available
+  }, [phone]);
 
+  console.log("[HomeScreen] phone from storage: ", AsyncStorage.getItem("phone"));
 
-  console.log("[HomeScreen] phone from storage: ", AsyncStorage.getItem("phone"))
-
-  // Automatically navigate if customer is selected
+  // Handle navigation after profile completion
   useEffect(() => {
     if (userType === 'customer') {
       handleCustomerSubmit();
-      navigation.reset({ index: 0, routes: [{ name: 'CustomerDashboard' }] });
+      // Navigate to the Main navigator which contains the tab navigator
+      navigation.getParent()?.navigate('Main');
     }
   }, [userType, handleCustomerSubmit, navigation]);
 
+  // Handle owner profile completion
+  const handleOwnerComplete = async () => {
+    await handleOwnerSubmit();
+    // After owner profile is completed, navigate to Main
+    navigation.getParent()?.navigate('Main');
+  };
+
+  // Handle logout - navigate back to Auth flow
+  const onLogout = async () => {
+    await handleLogout();
+    // Reset to Login screen in Auth stack
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Login' }],
+    });
+  };
+
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1976D2" />
-      <TouchableOpacity onPress={handleLogout}>
-        <View>
-          <Text>Logout</Text>
-        </View>
-      </TouchableOpacity>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <CombinedProfileSetup
-          userType={userType}
-          setUserType={setUserType}
-          printerModel={printerModel}
-          setPrinterModel={setPrinterModel}
-          upiId={upiId}
-          setUpiId={setUpiId}
-          handleOwnerSubmit={handleOwnerSubmit}
-        />
-      </ScrollView>
-    </View>
+    <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="white" />
+        
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <CombinedProfileSetup
+            userType={userType}
+            setUserType={setUserType}
+            printerModel={printerModel}
+            setPrinterModel={setPrinterModel}
+            upiId={upiId}
+            setUpiId={setUpiId}
+            handleOwnerSubmit={handleOwnerComplete} // Use the wrapper function
+          />
+          <TouchableOpacity onPress={onLogout}>
+          <View>
+            <Text>Logout</Text>
+          </View>
+        </TouchableOpacity>
+        </ScrollView>
+    </SafeAreaView>
   );
 };
 
