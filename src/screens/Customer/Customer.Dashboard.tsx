@@ -1,45 +1,70 @@
 import React, { useEffect, useState } from "react";
-import { Alert, ScrollView, Text, TouchableOpacity, View, StatusBar, TextInput, Button, ActivityIndicator } from "react-native";
-import { useHomeScreen } from "../Home/hooks/useHomeScreen";
+import {
+    Alert,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View,
+    StatusBar,
+    Button,
+    ActivityIndicator
+} from "react-native";
 import QRScreen from "../../components/QRScanner/QRScanner";
 import { styles } from "./CustomerDashboard.styles";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useOwnerDashboard } from "../Owner/hooks/useOwnerDashboard";
-import FileTransferProgress from '../../components/Customer/FileTransferProgress'
+import FileTransferProgress from '../../components/Customer/FileTransferProgress';
 
 const CustomerDashboard: React.FC = () => {
-    const { handleLogout } = useHomeScreen();
+    // Local state to hold the name of the device we want to connect to
+    const [targetDeviceName, setTargetDeviceName] = useState<string | null>(null);
+
     const {
-        status,
-        connectedEndpoint,
-        messageToSend,
-        setMessageToSend,
+        connectionStatus,
+        connectionStatusLabel,
+        connectedEndpoints,
+        discoveredEndpoints,
         receivedMessages,
-        handleConnect,
-        handleSendMessage,
+        handleStartDiscovery,
+        handleConnectToEndpoint,
         handleStopAndReset,
         handleSendFile,
-        fileTransfers
+        fileTransfers,
+        handleStopAndResetCustomer
     } = useOwnerDashboard();
 
+    // Effect to connect automatically once the target device is discovered
+    useEffect(() => {
+        if (targetDeviceName && discoveredEndpoints.length > 0) {
+            const endpoint = discoveredEndpoints.find(e => e.name === targetDeviceName);
+            if (endpoint) {
+                // Found the device, now attempt to connect
+                handleConnectToEndpoint(endpoint.id);
+                // Reset the target name to prevent re-connecting
+                setTargetDeviceName(null);
+            }
+        }
+    }, [discoveredEndpoints, targetDeviceName, handleConnectToEndpoint]);
+
+
     const onScanned = async (value: string) => {
-        let targetDeviceName: string | null = null;
+        let parsedName: string | null = null;
         try {
             const parsed = JSON.parse(value);
-            // We now look for the deviceName in the QR code
-            targetDeviceName = parsed.deviceName ?? null;
-            console.log("Parsed QR -> Target Device Name:", targetDeviceName);
+            parsedName = parsed.deviceName ?? null;
         } catch (e) {
-            // This fallback is less likely to work now, but we keep it
-            targetDeviceName = value;
-        }
-
-        if (!targetDeviceName) {
-            Alert.alert('Scan Error', 'Scanned QR does not contain a valid device name.');
+            Alert.alert('Scan Error', 'The scanned QR code is not valid.');
             return;
         }
-        // Call handleConnect with the TARGET's name
-        await handleConnect(targetDeviceName);
+
+        if (!parsedName) {
+            Alert.alert('Scan Error', 'Scanned QR does not contain a device name.');
+            return;
+        }
+
+        // Set the target device name and start searching for it
+        setTargetDeviceName(parsedName);
+        await handleStartDiscovery();
     };
 
     const handleDisconnect = () => {
@@ -48,7 +73,7 @@ const CustomerDashboard: React.FC = () => {
             "Are you sure you want to disconnect?",
             [
                 { text: "Cancel", style: "cancel" },
-                { text: "Yes", onPress: handleStopAndReset },
+                { text: "Yes", onPress: handleStopAndResetCustomer },
             ],
             { cancelable: true }
         );
@@ -56,32 +81,21 @@ const CustomerDashboard: React.FC = () => {
 
     const renderSearchingContent = () => (
         <View style={styles.container}>
-            <Button title="Close" onPress={handleStopAndReset}></Button>
-            <Text>Searching...</Text>
-            <Text>{status}</Text>
+            <Button title="Cancel" onPress={handleStopAndReset} />
+            <ActivityIndicator size="large" style={{ marginVertical: 20 }} />
+            <Text>Searching for {targetDeviceName || 'device'}...</Text>
+            <Text>{connectionStatusLabel}</Text>
         </View>
     );
-
 
     const renderQRScanner = () => (
         <QRScreen onScanned={onScanned} />
-    );
-
-    const renderConnectingContent = () => (
-        <View style={styles.container}>
-            <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
-
-            <ActivityIndicator size="large" color="#007AFF" />
-            <Text style={styles.statusTextLarge}>Connecting...</Text>
-            <Text style={styles.subtitle}>Please wait while we establish a secure connection.</Text>
-        </View>
     );
 
     const renderConnectedContent = () => (
         <View style={styles.container}>
             <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
             <View style={styles.connectedHeader}>
-                <Text style={styles.connectedTitle}>Connected to {connectedEndpoint?.name || 'Peer'}</Text>
                 <View style={styles.connectionStatus}>
                     <View style={styles.statusDot} />
                     <Text style={styles.statusText}>Secure Connection</Text>
@@ -94,7 +108,7 @@ const CustomerDashboard: React.FC = () => {
                     ))}
                 </ScrollView>
 
-                {/* File Transfer Progress Section - Improved Styling */}
+                {/* File Transfer Progress Section */}
                 {fileTransfers.length > 0 && (
                     <View style={styles.transferSection}>
                         <Text style={styles.transferSectionTitle}>File Transfers</Text>
@@ -123,27 +137,6 @@ const CustomerDashboard: React.FC = () => {
                         <Text style={styles.sendFileButtonText}>📎 Send File</Text>
                     </TouchableOpacity>
                 </View>
-
-                {/* Message Input */}
-                <View style={styles.inputContainer}>
-                    <TextInput
-                        style={styles.input}
-                        value={messageToSend}
-                        onChangeText={setMessageToSend}
-                        placeholder="Type a message..."
-                        multiline={false}
-                        returnKeyType="send"
-                        onSubmitEditing={handleSendMessage}
-                    />
-                    <TouchableOpacity
-                        style={[styles.sendButton, { opacity: messageToSend.trim() ? 1 : 0.5 }]}
-                        onPress={handleSendMessage}
-                        disabled={!messageToSend.trim()}
-                        activeOpacity={0.8}
-                    >
-                        <Text style={styles.sendButtonText}>Send</Text>
-                    </TouchableOpacity>
-                </View>
             </View>
             <View style={styles.connectionActions}>
                 <TouchableOpacity style={styles.secondaryActionButton} activeOpacity={0.9} onPress={handleDisconnect}>
@@ -153,27 +146,75 @@ const CustomerDashboard: React.FC = () => {
         </View>
     );
 
-    // --- MAIN RENDER LOGIC ---
+    // --- Conditional Rendering Logic ---
 
-    // if (showQRScreen) {
-    //     return <SafeAreaView style={styles.safeArea}>{renderQRScanner()}</SafeAreaView>;
-    // }
-
-    if (connectedEndpoint) {
-        return <SafeAreaView style={styles.safeArea}>{renderConnectedContent()}</SafeAreaView>;
-    }
-    if (status.startsWith('Searching')) {
-        return <SafeAreaView style={styles.safeArea}>{renderSearchingContent()}</SafeAreaView>;
+    if (connectedEndpoints.length > 0) {
+        return (
+            <SafeAreaView style={styles.safeArea}>
+                <StatusBar barStyle={'dark-content'} backgroundColor={'white'} />
+                {renderConnectedContent()}
+            </SafeAreaView>
+        );
     }
 
-    if (status.startsWith('Connecting')) {
-        return <SafeAreaView style={styles.safeArea}>{renderConnectingContent()}</SafeAreaView>;
+    if (connectionStatus === 'DISCOVERING') {
+         return (
+            <SafeAreaView style={styles.safeArea}>
+                <StatusBar barStyle={'dark-content'} backgroundColor={'white'} />
+                {renderSearchingContent()}
+            </SafeAreaView>
+        );
     }
 
+    // Default view: Show the QR scanner
     return (
         <SafeAreaView style={styles.safeArea}>
-            <StatusBar barStyle={'light-content'} backgroundColor={'white'} />
-            {renderQRScanner()}
+            <StatusBar barStyle={'light-content'} backgroundColor={'black'} />
+            <View style={styles.mainContainer}>
+                {renderQRScanner()}
+
+                <View style={styles.bottomPart}>
+                    <View style={styles.instructionBox}>
+                        <Text style={styles.scannerInstruction}>Instructions</Text>
+                        <Text style={styles.scannerSubtext}>Step 1: Scan QR on the shopkeeper's device</Text>
+                        <Text style={styles.scannerSubtext}>Step 2: Select a document to send</Text>
+                        <Text style={styles.scannerSubtext}>Step 3: Pay the amount</Text>
+                        <Text style={styles.scannerSubtext}>DONE!</Text>
+                    </View>
+                </View>
+                <TouchableOpacity
+                        activeOpacity={0.85}
+                        style={styles.emergencyButton}
+                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                        accessibilityLabel="Emergency reset"
+                        onPress={() =>
+                          Alert.alert(
+                            'Confirm reset',
+                            'Are you sure you want to stop and reset immediately?',
+                            [
+                              { text: 'No', style: 'cancel' },
+                              {
+                                text: 'Yes',
+                                style: 'destructive',
+                                onPress: async () => {
+                                  try {
+                                    // setIsLoading(true);
+                                    await handleStopAndReset();
+                                  } catch (err) {
+                                    console.error('Reset failed', err);
+                                  } finally {
+                                    // setIsLoading(false);
+                                  }
+                                },
+                              },
+                            ],
+                            { cancelable: true }
+                          )
+                        }
+                      >
+                        <Text style={styles.emergencyButtonText}>Reset</Text>
+                      </TouchableOpacity>
+            </View>
         </SafeAreaView>
     );
 };

@@ -44,9 +44,31 @@ export const styles = StyleSheet.create({
         flexDirection: 'column',
     },
     overlayTopRow: {
-        flex: 1,
+        flex: 1.5,
         backgroundColor: 'rgba(0,0,0,0.5)', // semi-transparent
     },
+    topPart: {
+    position: 'absolute',
+    top: 0,
+    zIndex: 10,
+    borderBottomLeftRadius: 40,
+    borderBottomEndRadius: 40,
+    width: "100%",
+    padding: 10,
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+  },
+  instructionsText: {
+    position: 'relative',
+    top: 20,
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: theme.colors.surface.main,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
     overlayCenterRow: {
         flex: 3,
         flexDirection: 'row',
@@ -66,8 +88,9 @@ export const styles = StyleSheet.create({
     },
     inactiveContainer: {
         flex: 1,
-        // justifyContent: 'center',
+        justifyContent: 'center',
         alignItems: 'center',
+        paddingBottom: 100,
         marginTop: theme.spacing.xl,
         backgroundColor: '#000000a0', // Semi-transparent black
     },

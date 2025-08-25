@@ -125,18 +125,21 @@ const QRScreen: React.FC<QRScreenProps> = ({ onScanned }) => {
                             codeScanner={codeScanner}
                         />
                         <View style={styles.overlay}>
-                            <View style={styles.overlayTopRow}/>
-                            <View style={styles.overlayCenterRow}>
-                                <View style={styles.overlaySide}/>
-                                <View style={styles.scanBox}/>
-                                <View style={styles.overlaySide}/>
+                            <View style={styles.overlayTopRow} />
+                            <View style={styles.topPart}>
+                                <Text style={styles.instructionsText}>Align QR within the frame</Text>
                             </View>
-                            <View style={styles.overlayBottomRow}/>
+                            <View style={styles.overlayCenterRow}>
+                                <View style={styles.overlaySide} />
+                                <View style={styles.scanBox} />
+                                <View style={styles.overlaySide} />
+                            </View>
+                            <View style={styles.overlayBottomRow} />
                         </View>
                     </>
                 ) : (
                     <View style={styles.inactiveContainer}>
-                        <Text style={styles.inactiveText}>Tap to Scan</Text>
+                        <Text style={styles.inactiveText}>Tap here to Scan</Text>
                     </View>
                 )}
 

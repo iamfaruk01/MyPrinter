@@ -1,43 +1,41 @@
-import { useState, useEffect } from 'react';
-import { Alert, NativeModules, NativeEventEmitter, Platform, Linking } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, NativeEventEmitter, NativeModules, Platform, Linking } from 'react-native';
 import Device from 'react-native-device-info';
 import { PERMISSIONS, requestMultiple, checkMultiple, RESULTS, Permission } from 'react-native-permissions';
-import { pick, keepLocalCopy, DocumentPickerResponse } from '@react-native-documents/picker'
+import { pick, DocumentPickerResponse } from '@react-native-documents/picker';
 
-const { NearbyModule } = NativeModules;
+import { NearbyModuleType } from "../types/nearby";
+import {
+  ConnectionStatus,
+  FileTransferStatus,
+  connectionStatusLabels,
+  fileTransferStatusLabels, // ✅ FIX: Add the missing import here
+} from "../types/connection";
+import {
+  Endpoint,
+  EndpointFoundEvent,
+  FileTransferUpdateEvent,
+  FileTransferStatusNative
+} from "../types/nearby";
 
-interface Endpoint {
-  id: string;
-  name: string;
-}
+// Native module instance
+const NativeNearby = NativeModules.NearbyModule as NearbyModuleType;
 
-// Event interfaces to match native code
-interface EndpointFoundEvent {
-  endpointId: string;
-  endpointName: string;
-}
-
-interface FileTransfer {
+// File transfer local state interface
+interface FileTransferState {
   payloadId: number;
   filename: string;
-  status: 'IN_PROGRESS' | 'SUCCESS' | 'FAILURE' | 'CANCELED';
+  status: FileTransferStatusNative;
   progress: number;
   bytesTransferred?: number;
   totalBytes?: number;
-}
-
-interface FileTransferUpdateEvent {
-  payloadId: number;
-  status: 'IN_PROGRESS' | 'SUCCESS' | 'FAILURE' | 'CANCELED';
-  progress: number;
-  bytesTransferred?: number;
-  totalBytes?: number;
-  filename?: string;
 }
 
 const getRequiredPermissions = (): Permission[] => {
   const permissions: Permission[] = [PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION];
-  const androidVersion = typeof Platform.Version === 'string' ? parseInt(Platform.Version, 10) : Platform.Version;
+  const androidVersion = typeof Platform.Version === 'string'
+    ? parseInt(Platform.Version, 10)
+    : Platform.Version;
 
   if (androidVersion >= 31) {
     permissions.push(
@@ -47,8 +45,7 @@ const getRequiredPermissions = (): Permission[] => {
       PERMISSIONS.ANDROID.NEARBY_WIFI_DEVICES,
     );
   }
-  // For Android 9 (API 28) and below, we need to request storage permission
-  // to save files to the public Downloads folder.
+
   if (androidVersion <= 28) {
     permissions.push(PERMISSIONS.ANDROID.WRITE_EXTERNAL_STORAGE);
   }
@@ -57,264 +54,438 @@ const getRequiredPermissions = (): Permission[] => {
 };
 
 export const useOwnerDashboard = () => {
-  const [deviceName, setDeviceName] = useState('');
-  const [status, setStatus] = useState('Idle');
+  // State declarations
+  const [deviceName, setDeviceName] = useState<string>('');
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('IDLE');
+  const [fileTransferStatus, setFileTransferStatus] = useState<FileTransferStatus>('IDLE');
   const [discoveredEndpoints, setDiscoveredEndpoints] = useState<Endpoint[]>([]);
-  const [connectedEndpoint, setConnectedEndpoint] = useState<Endpoint | null>(null);
-  const [messageToSend, setMessageToSend] = useState('');
+  const [connectedEndpoints, setConnectedEndpoints] = useState<Endpoint[]>([]);
+  const [messageToSend, setMessageToSend] = useState<string>('');
   const [receivedMessages, setReceivedMessages] = useState<string[]>([]);
   const [nearbyEventEmitter, setNearbyEventEmitter] = useState<NativeEventEmitter | null>(null);
   const [qrData, setQrData] = useState<string | null>(null);
-  const [fileTransfers, setFileTransfers] = useState<FileTransfer[]>([]);
+  const [fileTransfers, setFileTransfers] = useState<FileTransferState[]>([]);
+
+  // Refs to avoid stale closures in event listeners
+  const connectedEndpointsRef = useRef<Endpoint[]>([]);
+  const discoveredEndpointsRef = useRef<Endpoint[]>([]);
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    connectedEndpointsRef.current = connectedEndpoints;
+  }, [connectedEndpoints]);
 
   useEffect(() => {
-    Device.getDeviceName().then(name => {
-      console.log('[useOwnerDashboard] device name fetched:', name);
-      setDeviceName(name);
-    });
+    discoveredEndpointsRef.current = discoveredEndpoints;
+  }, [discoveredEndpoints]);
 
-    if (NearbyModule) {
-      console.log('[useOwnerDashboard] NearbyModule available, creating event emitter');
-      setNearbyEventEmitter(new NativeEventEmitter(NearbyModule));
+  // Initialize device name and event emitter
+  useEffect(() => {
+    const initializeDevice = async () => {
+      try {
+        const name = await Device.getDeviceName();
+        setDeviceName(name);
+      } catch (error: any) {
+        console.warn('[useOwnerDashboard] Failed to get device name:', error);
+        setDeviceName('Unknown Device');
+      }
+    };
+
+    initializeDevice();
+
+    if (NativeNearby) {
+      setNearbyEventEmitter(new NativeEventEmitter(NativeNearby as any));
     } else {
-      console.warn('[useOwnerDashboard] NearbyModule not available');
       Alert.alert('Error', 'Nearby functionality is not available on this device');
     }
+
+    // Cleanup function
+    return () => {
+      if (NativeNearby?.stopAllEndpoints) {
+        NativeNearby.stopAllEndpoints().catch((error: any) => {
+          console.warn('[useOwnerDashboard] Failed to stop endpoints on cleanup:', error);
+        });
+      }
+    };
   }, []);
 
-  const handlePermissions = async (): Promise<boolean> => {
+  // Permission handling
+  const handlePermissions = useCallback(async (): Promise<boolean> => {
     if (Platform.OS !== 'android') return true;
+
     try {
       const requiredPermissions = getRequiredPermissions();
       const statuses = await checkMultiple(requiredPermissions);
-      const allGranted = Object.values(statuses).every(s => s === RESULTS.GRANTED);
+      const allGranted = Object.values(statuses).every(status => status === RESULTS.GRANTED);
+
       if (allGranted) return true;
+
       const requestResults = await requestMultiple(requiredPermissions);
-      const wereAllGranted = Object.values(requestResults).every(s => s === RESULTS.GRANTED);
+      const wereAllGranted = Object.values(requestResults).every(status => status === RESULTS.GRANTED);
+
       if (wereAllGranted) return true;
-      const isBlocked = Object.values(requestResults).some(s => s === RESULTS.BLOCKED);
+
+      const isBlocked = Object.values(requestResults).some(status => status === RESULTS.BLOCKED);
+
       if (isBlocked) {
         Alert.alert(
           'Permissions Required',
           'Permissions were permanently denied. Please enable them in settings.',
-          [{ text: 'Cancel', style: 'cancel' }, { text: 'Open Settings', onPress: () => Linking.openSettings() }]
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => Linking.openSettings() }
+          ]
         );
       } else {
         Alert.alert('Permissions Denied', 'All required permissions must be granted.');
       }
+
       return false;
-    } catch (error) {
+    } catch (error: any) {
       console.error('[useOwnerDashboard] Permission error:', error);
+      Alert.alert('Permission Error', 'Failed to handle permissions. Please try again.');
       return false;
     }
-  };
+  }, []);
 
+  // Event listeners setup
   useEffect(() => {
     if (!nearbyEventEmitter) return;
+
     const listeners = [
+      // Endpoint discovery
       nearbyEventEmitter.addListener('onEndpointFound', (event: EndpointFoundEvent) => {
-        setDiscoveredEndpoints(prev =>
-          prev.some(e => e.id === event.endpointId) ? prev : [...prev, { id: event.endpointId, name: event.endpointName }]
-        );
+        setDiscoveredEndpoints(prev => {
+          const exists = prev.some(endpoint => endpoint.id === event.endpointId);
+          if (exists) return prev;
+          return [...prev, { id: event.endpointId, name: event.endpointName }];
+        });
       }),
+
       nearbyEventEmitter.addListener('onEndpointLost', (event: { endpointId: string }) => {
-        setDiscoveredEndpoints(prev => prev.filter(e => e.id !== event.endpointId));
+        setDiscoveredEndpoints(prev => prev.filter(endpoint => endpoint.id !== event.endpointId));
       }),
+
+      // Connection management
       nearbyEventEmitter.addListener('onConnectionInitiated', (event: EndpointFoundEvent) => {
-        Alert.alert(
-          'Connection Request',
-          `Accept connection from ${event.endpointName}?`,
-          [
-            { text: 'Reject', style: 'cancel', onPress: () => NearbyModule?.rejectConnection(event.endpointId) },
-            { text: 'Accept', onPress: () => NearbyModule?.acceptConnection(event.endpointId) }
-          ]
-        );
-      }),
-      nearbyEventEmitter.addListener('onConnectionResult', (event: { success: boolean, endpointId: string }) => {
-        const endpoint = discoveredEndpoints.find(e => e.id === event.endpointId) || { id: event.endpointId, name: 'Peer' };
-        if (event.success) {
-          setStatus('Connected');
-          setConnectedEndpoint(endpoint);
-          setDiscoveredEndpoints([]);
-        } else {
-          setStatus('Connection Failed');
-          setConnectedEndpoint(null);
+        if (NativeNearby?.acceptConnection) {
+          NativeNearby.acceptConnection(event.endpointId).catch((error: any) => {
+            console.warn('[useOwnerDashboard] Failed to accept connection:', error);
+          });
         }
       }),
+
+      nearbyEventEmitter.addListener('onConnectionResult', (event: { success: boolean; endpointId: string }) => {
+        const endpoint = discoveredEndpointsRef.current.find(e => e.id === event.endpointId) || {
+          id: event.endpointId,
+          name: 'Unknown Peer'
+        };
+
+        if (event.success) {
+          setConnectedEndpoints(prev => {
+            const updated = [...prev, endpoint];
+            connectedEndpointsRef.current = updated;
+            return updated;
+          });
+          setConnectionStatus('CONNECTED');
+          
+          // ✅ FIXED: Stop discovery when connected (for customer devices)
+          if (NativeNearby?.stopDiscovery) {
+            NativeNearby.stopDiscovery().catch((error: any) => {
+              console.warn('[useOwnerDashboard] Failed to stop discovery after connection:', error);
+            });
+          }
+        } else {
+          setConnectionStatus('FAILED');
+          Alert.alert('Connection Failed', `Failed to connect to ${endpoint.name}`);
+          setTimeout(() => {
+            setConnectionStatus(connectedEndpointsRef.current.length > 0 ? 'CONNECTED' : 'ADVERTISING');
+          }, 2000);
+        }
+      }),
+
       nearbyEventEmitter.addListener('onDisconnected', (event: { endpointId: string }) => {
-        setStatus('Disconnected');
-        setConnectedEndpoint(null);
+        setConnectedEndpoints(prev => {
+          const updated = prev.filter(endpoint => endpoint.id !== event.endpointId);
+          connectedEndpointsRef.current = updated;
+          
+          // ✅ FIXED: When disconnected, reset to IDLE state and stop any ongoing operations
+          if (updated.length === 0) {
+            setConnectionStatus('IDLE');
+            setDiscoveredEndpoints([]);
+            discoveredEndpointsRef.current = [];
+            
+            // Stop discovery if it's running
+            if (NativeNearby?.stopDiscovery) {
+              NativeNearby.stopDiscovery().catch((error: any) => {
+                console.warn('[useOwnerDashboard] Failed to stop discovery after disconnection:', error);
+              });
+            }
+          } else {
+            setConnectionStatus('CONNECTED');
+          }
+          
+          return updated;
+        });
       }),
-      nearbyEventEmitter.addListener('onPayloadReceived', (event: { message: string }) => {
-        setReceivedMessages(prev => [...prev, event.message]);
+
+      // Message handling
+      nearbyEventEmitter.addListener('onPayloadReceived', (event: { message: string; fromEndpointId: string }) => {
+        const sender = connectedEndpointsRef.current.find(endpoint => endpoint.id === event.fromEndpointId);
+        const senderName = sender?.name || 'Unknown Peer';
+        setReceivedMessages(prev => [...prev, `${senderName}: ${event.message}`]);
       }),
-      // IMPROVED file transfer progress handling
+
+      // File transfer handling
       nearbyEventEmitter.addListener('onFileTransferUpdate', (event: FileTransferUpdateEvent) => {
-        console.log('[useOwnerDashboard] File transfer update:', event);
+        const mapStatus = (nativeStatus: FileTransferStatusNative): FileTransferStatus => {
+          switch (nativeStatus) {
+            case 'IN_PROGRESS': return 'IN_PROGRESS';
+            case 'SUCCESS': return 'COMPLETED';
+            case 'FAILURE': case 'CANCELED': return 'FAILED';
+            default: return 'FAILED';
+          }
+        };
+
+        setFileTransferStatus(mapStatus(event.status));
 
         setFileTransfers(prev => {
           const existingIndex = prev.findIndex(transfer => transfer.payloadId === event.payloadId);
 
           if (existingIndex >= 0) {
-            // Update existing transfer
-            const updatedTransfers = [...prev];
-            updatedTransfers[existingIndex] = {
-              ...updatedTransfers[existingIndex],
+            const updated = [...prev];
+            updated[existingIndex] = {
+              ...updated[existingIndex],
               status: event.status,
               progress: event.progress,
               bytesTransferred: event.bytesTransferred,
               totalBytes: event.totalBytes,
+              filename: event.filename || updated[existingIndex].filename,
             };
-            return updatedTransfers;
-          } else {
-            // Create new transfer (for incoming files)
-            return [...prev, {
-              payloadId: event.payloadId,
-              filename: event.filename || 'Unknown file',
-              status: event.status,
-              progress: event.progress,
-              bytesTransferred: event.bytesTransferred,
-              totalBytes: event.totalBytes,
-            }];
+            return updated;
           }
+
+          return [...prev, {
+            payloadId: event.payloadId,
+            filename: event.filename || 'Unknown File',
+            status: event.status,
+            progress: event.progress,
+            bytesTransferred: event.bytesTransferred,
+            totalBytes: event.totalBytes,
+          }];
         });
 
-        // Remove completed transfers after a delay
-        if (event.status === 'SUCCESS' || event.status === 'FAILURE' || event.status === 'CANCELED') {
+        if (['SUCCESS', 'FAILURE', 'CANCELED'].includes(event.status)) {
           setTimeout(() => {
-            setFileTransfers(prev => prev.filter(transfer =>
-              transfer.payloadId !== event.payloadId ||
-              (transfer.status !== 'SUCCESS' && transfer.status !== 'FAILURE' && transfer.status !== 'CANCELED')
-            ));
-          }, 3000); // Remove after 3 seconds
+            setFileTransfers(prev =>
+              prev.filter(transfer => !['SUCCESS', 'FAILURE', 'CANCELED'].includes(transfer.status))
+            );
+            setFileTransfers(currentTransfers => {
+              const hasActiveTransfers = currentTransfers.some(t => t.status === 'IN_PROGRESS');
+              if (!hasActiveTransfers) {
+                setFileTransferStatus('IDLE');
+              }
+              return currentTransfers;
+            });
+          }, 3000);
         }
       }),
     ];
-    return () => listeners.forEach(l => l.remove());
-  }, [nearbyEventEmitter, discoveredEndpoints]);
 
-  const handleStartAdvertising = async () => {
-    if (!NearbyModule || !deviceName) return;
-    if (await handlePermissions()) {
-      setStatus('Advertising...');
-      try {
-        const result = await NearbyModule.startAdvertising(deviceName);
-        setQrData(JSON.stringify(result));
-      } catch (e) {
-        setStatus('Advertising failed');
-      }
+    return () => {
+      listeners.forEach(listener => listener.remove());
+    };
+  }, [nearbyEventEmitter]);
+
+  // Action handlers
+  const handleStartAdvertising = useCallback(async () => {
+    if (!NativeNearby || !deviceName) {
+      Alert.alert('Error', 'Device name not available or Nearby module not initialized');
+      return;
     }
-  };
-
-  const handleStartDiscovery = async () => {
-    if (!NearbyModule) return;
-    if (await handlePermissions()) {
-      setStatus('Discovering...');
-      setDiscoveredEndpoints([]);
-      try {
-        await NearbyModule.startDiscovery();
-      } catch (e) {
-        setStatus('Discovery failed');
-      }
-    }
-  };
-
-  const handleConnect = async (targetDeviceName: string) => {
-    if (!NearbyModule || !deviceName) return;
     if (!(await handlePermissions())) return;
-    setStatus(`Searching for ${targetDeviceName}...`);
-    setDiscoveredEndpoints([]);
-    await NearbyModule.startDiscovery();
-    const findEndpointPromise = new Promise<Endpoint>((resolve, reject) => {
-      let listener: { remove: () => void; } | undefined;
-      const timeout = setTimeout(() => {
-        listener?.remove();
-        reject(new Error("Device not found. Please try again."));
-      }, 20000);
-      listener = nearbyEventEmitter?.addListener('onEndpointFound', (event: EndpointFoundEvent) => {
-        if (event.endpointName && event.endpointName.startsWith(targetDeviceName)) {
-          clearTimeout(timeout);
-          listener?.remove();
-          resolve({ id: event.endpointId, name: event.endpointName });
-        }
-      });
-    });
+    setConnectionStatus('ADVERTISING');
     try {
-      const targetEndpoint = await findEndpointPromise;
-      setStatus(`Connecting to ${targetEndpoint.name}...`);
-      await NearbyModule.connectToEndpoint(targetEndpoint.id, deviceName);
+      const result = await NativeNearby.startAdvertising(deviceName);
+      setQrData(JSON.stringify(result));
     } catch (error: any) {
-      Alert.alert('Connection Error', error.message);
-      await handleStopAndReset();
+      console.error('[useOwnerDashboard] Start advertising error:', error);
+      setConnectionStatus('FAILED');
+      Alert.alert('Error', 'Failed to start advertising. Please try again.');
+      setTimeout(() => setConnectionStatus('IDLE'), 2000);
     }
-  };
+  }, [deviceName, handlePermissions]);
 
-  const handleSendMessage = async () => {
-    if (!NearbyModule || !connectedEndpoint || !messageToSend.trim()) return;
-    try {
-      await NearbyModule.sendPayload(connectedEndpoint.id, messageToSend.trim());
-      setReceivedMessages(prev => [...prev, `You: ${messageToSend.trim()}`]);
-      setMessageToSend('');
-    } catch (e) {
-      console.error('[useOwnerDashboard] sendPayload failed:', e);
+  const handleStartDiscovery = useCallback(async () => {
+    if (!NativeNearby) {
+      Alert.alert('Error', 'Nearby module not initialized');
+      return;
     }
-  };
-
-  const handleStopAndReset = async () => {
-    if (!NearbyModule) return;
+    if (!(await handlePermissions())) return;
+    setConnectionStatus('DISCOVERING');
+    setDiscoveredEndpoints([]);
+    discoveredEndpointsRef.current = [];
     try {
-      await NearbyModule.stopAllEndpoints();
-    } catch (e) {
-      console.error('[useOwnerDashboard] stopAllEndpoints failed:', e);
+      await NativeNearby.startDiscovery();
+    } catch (error: any) {
+      console.error('[useOwnerDashboard] Start discovery error:', error);
+      setConnectionStatus('FAILED');
+      Alert.alert('Error', 'Failed to start discovery. Please try again.');
+      setTimeout(() => setConnectionStatus('IDLE'), 2000);
+    }
+  }, [handlePermissions]);
+
+  const handleStopAndReset = useCallback(async () => {
+    if (!NativeNearby) return;
+    try {
+      await NativeNearby.stopAllEndpoints();
+    } catch (error: any) {
+      console.warn('[useOwnerDashboard] Stop all endpoints failed:', error);
     } finally {
-      setStatus('Idle');
+      setConnectionStatus('IDLE');
+      setFileTransferStatus('IDLE');
       setDiscoveredEndpoints([]);
-      setConnectedEndpoint(null);
+      setConnectedEndpoints([]);
       setReceivedMessages([]);
       setQrData(null);
       setFileTransfers([]);
+      connectedEndpointsRef.current = [];
+      discoveredEndpointsRef.current = [];
     }
-  };
+  }, []);
 
-  const handleSendFile = async () => {
-    if (!connectedEndpoint) {
-      Alert.alert("Not Connected", "You must be connected to a device to send a file.");
+  const handleStopAndResetCustomer = useCallback(async () => {
+    if (!NativeNearby) return;
+    try {
+      await NativeNearby.stopAllEndpoints();
+    } catch (error: any) {
+      console.warn('[useOwnerDashboard] Stop all endpoints failed:', error);
+    } finally {
+      setConnectionStatus('IDLE');
+      setFileTransferStatus('IDLE');
+      setDiscoveredEndpoints([]);
+      setConnectedEndpoints([]);
+      setReceivedMessages([]);
+      setQrData(null);
+      setFileTransfers([]);
+      connectedEndpointsRef.current = [];
+      discoveredEndpointsRef.current = [];
+    }
+  }, []);
+
+  const handleDisconnectFromEndpoint = useCallback(async (endpointId: string) => {
+    if (!NativeNearby) return;
+    try {
+      await NativeNearby.disconnectFromEndpoint(endpointId);
+    } catch (error: any) {
+      console.error(`[useOwnerDashboard] Failed to disconnect from ${endpointId}:`, error);
+      Alert.alert('Error', `Failed to disconnect from endpoint. Please try again.`);
+    }
+  }, []);
+
+  const handleSendFile = useCallback(async () => {
+    if (connectedEndpointsRef.current.length === 0) {
+      Alert.alert('Not Connected', 'You must be connected to a device to send a file.');
       return;
     }
-
+    if (!NativeNearby) {
+      Alert.alert('Error', 'Nearby module not initialized');
+      return;
+    }
     try {
-      // 1. Open the document picker
-      const [result] = await pick();
-
-      console.log(`[useOwnerDashboard] Picked file: ${result.name}, URI: ${result.uri}`);
-
-      // 2. Call the native module to send the file
-      const transferInfo = await NearbyModule.sendFile(connectedEndpoint.id, result.uri);
-
-      // 3. Add to file transfers with initial state
+      const results = await pick({
+        type: ['application/pdf', 'image/*', 'text/*', 'audio/*', 'video/*'],
+        copyTo: 'cachesDirectory',
+      });
+      if (results.length === 0) return;
+      const selectedFile = results[0] as DocumentPickerResponse;
+      const targetEndpoint = connectedEndpointsRef.current[0];
+      const transferInfo = await NativeNearby.sendFile(targetEndpoint.id, selectedFile.uri);
       setFileTransfers(prev => [
         ...prev,
         {
           payloadId: transferInfo.payloadId,
-          filename: transferInfo.filename || result.name,
+          filename: transferInfo.filename || selectedFile.name || 'Unknown File',
           status: 'IN_PROGRESS',
           progress: 0,
         },
       ]);
-
-      Alert.alert("Success", `Started sending file: ${result.name}`);
-      setReceivedMessages(prev => [...prev, `You: (Sending file) ${result.name}`]);
-
-    } catch (err) {
-      console.error('[useOwnerDashboard] File picker error:', err);
-      Alert.alert('Error', 'Failed to pick or send file.');
+      setFileTransferStatus('IN_PROGRESS');
+      setReceivedMessages(prev => [
+        ...prev,
+        `You: (Sending file) ${selectedFile.name || 'Unknown File'}`
+      ]);
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'message' in error) {
+        if ((error as { message: string }).message === 'User canceled document picker') {
+          return;
+        }
+      }
+      console.error('[useOwnerDashboard] File send error:', error);
+      Alert.alert('Error', 'Failed to select or send file. Please try again.');
     }
-  };
+  }, []);
+
+  const handleSendMessage = useCallback(async (message: string) => {
+    if (!message.trim()) {
+      Alert.alert('Error', 'Please enter a message to send.');
+      return;
+    }
+    if (connectedEndpointsRef.current.length === 0) {
+      Alert.alert('Not Connected', 'You must be connected to a device to send a message.');
+      return;
+    }
+    if (!NativeNearby) {
+      Alert.alert('Error', 'Nearby module not initialized');
+      return;
+    }
+    try {
+      const targetEndpoint = connectedEndpointsRef.current[0];
+      await NativeNearby.sendPayload(targetEndpoint.id, message);
+      setReceivedMessages(prev => [...prev, `You: ${message}`]);
+      setMessageToSend('');
+    } catch (error: any) {
+      console.error('[useOwnerDashboard] Send message error:', error);
+      Alert.alert('Error', 'Failed to send message. Please try again.');
+    }
+  }, []);
+
+  const handleConnectToEndpoint = useCallback(async (endpointId: string) => {
+    if (!NativeNearby || !deviceName) {
+      Alert.alert('Error', 'Cannot connect: device not ready');
+      return;
+    }
+    try {
+      await NativeNearby.connectToEndpoint(endpointId, deviceName);
+    } catch (error: any) {
+      console.error('[useOwnerDashboard] Connect to endpoint error:', error);
+      Alert.alert('Error', 'Failed to connect to endpoint. Please try again.');
+    }
+  }, [deviceName]);
 
   return {
-    status, deviceName, discoveredEndpoints, connectedEndpoint, messageToSend,
-    setMessageToSend, receivedMessages, handleStartAdvertising, handleStartDiscovery,
-    handleConnect, handleSendMessage, handleStopAndReset, qrData,
-    handleSendFile, fileTransfers
+    // State
+    deviceName,
+    connectionStatus,
+    connectionStatusLabel: connectionStatusLabels[connectionStatus],
+    fileTransferStatus,
+    fileTransferStatusLabel: fileTransferStatusLabels[fileTransferStatus],
+    discoveredEndpoints,
+    connectedEndpoints,
+    messageToSend,
+    setMessageToSend,
+    receivedMessages,
+    qrData,
+    fileTransfers,
+
+    // Actions
+    handleStartAdvertising,
+    handleStartDiscovery,
+    handleStopAndReset,
+    handleDisconnectFromEndpoint,
+    handleSendFile,
+    handleSendMessage,
+    handleConnectToEndpoint,
+    handleStopAndResetCustomer
   };
 };

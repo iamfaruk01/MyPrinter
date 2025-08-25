@@ -1,5 +1,14 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, Button, TextInput, ActivityIndicator, ScrollView, StatusBar } from 'react-native';
+// OwnerDashboard.tsx
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ActivityIndicator,
+  ScrollView,
+  StatusBar,
+  Alert,
+} from 'react-native';
 import { useHomeScreen } from '../Home/hooks/useHomeScreen';
 import { useOwnerDashboard } from './hooks/useOwnerDashboard';
 import { styles } from './OwnerDashboard.styles';
@@ -8,124 +17,208 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 const OwnerDashboard = () => {
   const { handleLogout } = useHomeScreen();
+  const [isLoading, setIsLoading] = useState(false);
+
   const {
-    status,
+    connectionStatus,
+    connectionStatusLabel,
     discoveredEndpoints,
-    connectedEndpoint,
+    connectedEndpoints,
     messageToSend,
     setMessageToSend,
+    fileTransfers,
     receivedMessages,
     handleStartAdvertising,
     handleStartDiscovery,
-    handleConnect,
-    handleSendMessage,
+    handleConnectToEndpoint,
+    handleDisconnectFromEndpoint,
     handleStopAndReset,
-    qrData
+    handleSendFile,
+    handleSendMessage,
+    qrData,
   } = useOwnerDashboard();
 
-  const renderIdleContent = () => (
-    <>
-      <Text style={styles.title}>File Sharing Dashboard</Text>
-      <TouchableOpacity onPress={handleStartAdvertising} style={styles.button}>
-        <Text style={styles.buttonText}>Receive a File (Advertise)</Text>
-      </TouchableOpacity>
-      <TouchableOpacity onPress={handleStartDiscovery} style={[styles.button, styles.discoverButton]}>
-        <Text style={styles.buttonText}>Send a File (Discover)</Text>
-      </TouchableOpacity>
-    </>
-  );
+  const isAdvertising = connectionStatus === 'ADVERTISING';
+  const isConnected = connectedEndpoints.length > 0;
+  const showQr = isAdvertising || isConnected;
 
-  const renderActionContent = () => (
-    <>
-      <Text style={styles.title}>{status}...</Text>
-      
-      {status === 'Advertising...' && qrData && (
-        <View style={styles.qrContainer}>
-          <QRCode value={qrData} size={200} />
-          <Text style={styles.qrHelperText}>Ask the other user to scan this code.</Text>
-        </View>
-      )}
-
-      {status === 'Discovering...' && (
-        discoveredEndpoints.length === 0 ? (
-          <View style={styles.centered}>
-            <ActivityIndicator size="large" color="#007AFF" />
-            <Text style={styles.infoText}>Searching for nearby devices...</Text>
+  // ---- Small renderers ----
+  const renderQrCard = () => (
+    <View style={styles.qrCodePlaceholder}>
+      {showQr ? (
+        <>
+          {qrData ? (
+            <QRCode value={qrData} size={200} />
+          ) : (
+            <View style={styles.backgroundQr}>
+              <QRCode
+                value={'device'}
+                size={200}
+                color="black"
+                backgroundColor="transparent"
+              />
+            </View>
+          )}
+          <Text style={styles.qrTitle}>Ask the customers to scan</Text>
+        </>
+      ) : (
+        <>
+          <View style={styles.backgroundQr}>
+            <QRCode
+              value="Hello! this is Faruk."
+              size={200}
+              color="black"
+              backgroundColor="transparent"
+            />
           </View>
-        ) : (
-          <ScrollView style={{ width: '100%' }}>
-            {discoveredEndpoints.map(endpoint => (
-              <View key={endpoint.id} style={styles.device}>
-                <Text>{endpoint.name} ({endpoint.id})</Text>
-                {/* For Owner, connecting is secondary, but possible */}
-                <Button title="Connect" onPress={() => handleConnect(endpoint.name)} />
-              </View>
-            ))}
-          </ScrollView>
-        )
+          <Text style={styles.qrPlaceholderText}>Tap Start to generate QR</Text>
+        </>
       )}
-    </>
+    </View>
   );
 
-  // --- THIS FUNCTION HAS BEEN CORRECTED ---
-  const renderConnectedContent = () => (
-    // 1. Added flex: 1 to this container
-    <View style={{ width: '100%', flex: 1, alignItems: 'center' }}>
-      <Text style={styles.title}>Connected!</Text>
-      <Text style={styles.subtitle}>
-        Connection established with {connectedEndpoint?.name || 'peer'}.
-      </Text>
-      
-      {/* Message Display Area */}
-      <ScrollView style={styles.messageScrollView}>
-        {receivedMessages.map((msg, i) => (
-          <View key={i} style={styles.messageContainer}>
-            <Text 
-              style={[
-                styles.messageText,
-                // 2. Apply different styles for sent vs. received messages
-                msg.startsWith('You:') ? styles.sentMessage : styles.receivedMessage
-              ]}
+  const renderConnectedPanel = () => (
+    <>
+      <Text style={styles.title}>Connected Customers</Text>
+      <ScrollView style={{ width: '100%', maxHeight: 150 }}>
+        {connectedEndpoints.map((endpoint, index) => (
+          <View key={endpoint.id} style={styles.deviceItemContainer}>
+            <Text style={styles.deviceItemText}>{`${index + 1}. ${endpoint.name}`}</Text>
+            <TouchableOpacity
+              style={styles.disconnectButton}
+              onPress={() => handleDisconnectFromEndpoint(endpoint.id)}
             >
-              {msg}
-            </Text>
+              <Text style={styles.disconnectButtonText}>Disconnect</Text>
+            </TouchableOpacity>
           </View>
         ))}
       </ScrollView>
 
-      {/* Message Input Area */}
-      <View style={styles.input}>
-        <TextInput
-          style={styles.input}
-          value={messageToSend}
-          onChangeText={setMessageToSend}
-          placeholder="Type a message"
-          placeholderTextColor={"#999"}
-        />
-        <Button title="Send" onPress={handleSendMessage} disabled={!messageToSend.trim()} />
+      <View style={{ width: '100%', flex: 1, marginTop: 10 }}>
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 12 }}>
+          {fileTransfers.map((transfer) => (
+            <View key={transfer.payloadId} style={styles.transferContainer}>
+              <Text>{transfer.filename}</Text>
+              <Text>
+                {transfer.status} - {(transfer.progress * 100).toFixed(0)}%
+              </Text>
+            </View>
+          ))}
+
+          {receivedMessages.map((msg, i) => (
+            <View key={i} style={styles.messageContainer}>
+              <Text
+                style={
+                  msg.startsWith('You:')
+                    ? styles.sentMessage
+                    : styles.receivedMessage
+                }
+              >
+                {msg}
+              </Text>
+            </View>
+          ))}
+        </ScrollView>
       </View>
-    </View>
+    </>
   );
 
+  const renderControlPanel = () => {
+    if (isConnected) return renderConnectedPanel();
+
+    return (
+      <>
+        {!isAdvertising && !isLoading && (
+          <TouchableOpacity
+            style={[styles.startButton]}
+            onPress={async () => {
+              if (isLoading || isAdvertising) return;
+              try {
+                setIsLoading(true);
+                await handleStartAdvertising();
+              } catch (err) {
+                console.error('Start failed', err);
+              } finally {
+                setIsLoading(false);
+              }
+            }}
+            disabled={isLoading}
+          >
+            <Text style={styles.startButtonText}>Start</Text>
+          </TouchableOpacity>
+        )}
+
+        {!isAdvertising && isLoading && (
+          <View
+            style={[
+              styles.startButton,
+              styles.disabledButton,
+              { justifyContent: 'center', alignItems: 'center' },
+            ]}
+          >
+            <ActivityIndicator size="large" color="white" />
+          </View>
+        )}
+
+        {isAdvertising && (
+          <TouchableOpacity
+            style={[styles.startButton, styles.stopButton]}
+            onPress={async () => {
+              try {
+                setIsLoading(true);
+                await handleStopAndReset();
+              } catch (err) {
+                console.error('Stop failed', err);
+              } finally {
+                setIsLoading(false);
+              }
+            }}
+          >
+            <Text style={styles.startButtonText}>Stop</Text>
+          </TouchableOpacity>
+        )}
+      </>
+    );
+  };
+
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={'dark-content'} backgroundColor={'white'} />
-      <Text style={styles.statusText}>Current Status: {status}</Text>
-      
-      {connectedEndpoint
-        ? renderConnectedContent()
-        : (status === 'Discovering...' || status === 'Advertising...')
-          ? renderActionContent()
-          : renderIdleContent()
-      }
-      
-      {status !== 'Idle' && (
-        <TouchableOpacity onPress={handleStopAndReset} style={[styles.button, styles.stopButton]}>
-          <Text style={styles.buttonText}>Stop & Reset</Text>
-        </TouchableOpacity>
-      )}
-      <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-        <Text style={styles.logoutButtonText}>Logout</Text>
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="white" />
+      <View style={styles.topPanel}>{renderQrCard()}</View>
+      <View style={styles.divider} />
+      <View style={styles.bottomPanel}>{renderControlPanel()}</View>
+
+      <TouchableOpacity
+        activeOpacity={0.85}
+        style={styles.emergencyButton}
+        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        accessibilityLabel="Emergency reset"
+        onPress={() =>
+          Alert.alert(
+            'Confirm reset',
+            'Are you sure you want to stop and reset immediately?',
+            [
+              { text: 'No', style: 'cancel' },
+              {
+                text: 'Yes',
+                style: 'destructive',
+                onPress: async () => {
+                  try {
+                    setIsLoading(true);
+                    await handleStopAndReset();
+                  } catch (err) {
+                    console.error('Reset failed', err);
+                  } finally {
+                    setIsLoading(false);
+                  }
+                },
+              },
+            ],
+            { cancelable: true }
+          )
+        }
+      >
+        <Text style={styles.emergencyButtonText}>Reset</Text>
       </TouchableOpacity>
     </SafeAreaView>
   );
